@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor Inteligente de Deudores y Cuotas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            900: '#4c1d95',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-20 selection:bg-purple-500 selection:text-white relative">
+
+    <header class="bg-slate-800/95 border-b border-slate-700/80 z-30 shadow-lg">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">
+            
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="bg-purple-600/20 p-2 rounded-xl border border-purple-500/30 text-purple-400 shrink-0">
+                        <i class="fa-solid fa-calculator text-xl sm:text-2xl"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-sm sm:text-xl font-bold text-white flex items-center gap-1.5 sm:gap-2 leading-tight truncate">
+                            <span class="truncate">Control de Deudores</span>
+                            <span id="mesBadge" class="bg-purple-900/60 text-purple-300 text-[9px] sm:text-xs px-2 py-0.5 rounded-full border border-purple-500/40 font-mono uppercase shrink-0">SEPTIEMBRE</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400 hidden sm:block">Control automático de cuotas, saldos e historial mensual.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <button onclick="abrirModalReglas()" class="bg-slate-900 hover:bg-slate-950 border border-slate-700 text-purple-400 p-2 rounded-xl transition flex items-center justify-center shadow-sm" title="Reglas del Sistema de Cuotas">
+                        <i class="fa-solid fa-circle-info text-sm sm:text-base"></i>
+                    </button>
+                    
+                    <!-- Navegación de mes rápida con flechas -->
+                    <div class="flex items-center bg-slate-900 border border-purple-500/60 rounded-xl overflow-hidden shadow-sm">
+                        <button onclick="cambiarMesRapido(-1)" class="px-2 py-1.5 text-purple-300 hover:bg-purple-600/20 transition text-xs" title="Mes Anterior">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button onclick="abrirModalSeleccionarMes()" class="px-2 sm:px-3 py-1.5 font-mono font-bold text-[11px] sm:text-xs text-purple-300 hover:bg-purple-600/20 transition flex items-center gap-1.5 truncate max-w-[120px] sm:max-w-none">
+                            <i class="fa-solid fa-calendar-days text-purple-400 text-xs shrink-0"></i>
+                            <span id="labelMesAnioBoton" class="truncate">SEP 2026</span>
+                        </button>
+                        <button onclick="cambiarMesRapido(1)" class="px-2 py-1.5 text-purple-300 hover:bg-purple-600/20 transition text-xs" title="Mes Siguiente">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-end gap-1.5 sm:gap-2 pt-1 border-t border-slate-700/50">
+                <button onclick="irAMesActual()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-calendar-day"></i> Mes Actual
+                </button>
+
+                <button onclick="avanzarMesGlobal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Avanza de mes, resetea pagos y suma +1 a las cuotas activas">
+                    <i class="fa-solid fa-calendar-plus"></i> +1 Cuota (Nuevo Mes)
+                </button>
+
+                <button onclick="abrirModalCopiarMes()" class="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Copiar datos de otro mes al mes actual">
+                    <i class="fa-solid fa-copy"></i> Copiar Mes
+                </button>
+
+                <button onclick="vaciarMesActual()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Eliminar todos los datos del mes actual">
+                    <i class="fa-solid fa-trash-can"></i> Eliminar Mes
+                </button>
+
+                <button onclick="exportarRespaldoJSON()" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Guardar respaldo en archivo JSON">
+                    <i class="fa-solid fa-download"></i> Guardar JSON
+                </button>
+
+                <button onclick="document.getElementById('inputImportarJSON').click()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Cargar un archivo JSON de respaldo">
+                    <i class="fa-solid fa-upload"></i> Cargar JSON
+                </button>
+                <input type="file" id="inputImportarJSON" accept=".json" class="hidden" onchange="importarRespaldoJSON(event)">
+
+                <button onclick="exportarResumenWhatsApp()" class="bg-green-600 hover:bg-green-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Copiar formato limpio para WhatsApp">
+                    <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
+                </button>
+
+                <button onclick="exportarPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Exportar reporte del mes en formato PDF">
+                    <i class="fa-solid fa-file-pdf"></i> PDF
+                </button>
+
+                <button onclick="abrirModalDeudor()" class="col-span-2 sm:col-span-1 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-plus"></i> + Nuevo Deudor
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <button onclick="irAMesActual()" class="fixed bottom-5 right-5 z-40 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2.5 rounded-full font-semibold text-xs transition shadow-2xl border border-indigo-400/30 flex items-center gap-2 group">
+        <i class="fa-solid fa-calendar-day group-hover:scale-110 transition-transform"></i>
+        <span>Mes Actual</span>
+    </button>
+
+    <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6">
+
+        <div id="vistaDeudores" class="space-y-5">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-2.5 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
+                <div class="relative w-full sm:w-72">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                    <input type="text" id="inputBuscar" oninput="toggleBotonBorrarBusqueda(); renderizar();" placeholder="Buscar deudor o concepto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+                    <button id="btnLimpiarBusqueda" onclick="limpiarBusqueda()" class="hidden absolute right-2.5 top-2 text-slate-500 hover:text-white text-xs p-0.5">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <span class="text-xs text-slate-400">Filtrar:</span>
+                    <select id="filtroEstado" onchange="renderizar()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-500">
+                        <option value="todos">Todos los registros</option>
+                        <option value="activos">Cuotas Activas del Mes</option>
+                        <option value="cero">Cuotas 0/X (Futuras)</option>
+                        <option value="completadas">Cuotas Completadas</option>
+                        <option value="pagados">Deudores Pagados</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="contenedorDeudores" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            </div>
+
+            <div id="emptyState" class="hidden text-center py-12 bg-slate-800/30 border border-dashed border-slate-700 rounded-2xl px-4">
+                <i class="fa-solid fa-folder-open text-3xl text-slate-600 mb-2"></i>
+                <h3 class="text-sm font-semibold text-slate-300">Este mes está vacío</h3>
+                <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">No hay registros creados para este período. Puedes agregar un nuevo deudor o usar el botón "+1 Cuota (Nuevo Mes)" o "Copiar Mes".</p>
+                <div class="flex items-center justify-center gap-2 mt-4">
+                    <button onclick="abrirModalDeudor()" class="bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium transition">
+                        <i class="fa-solid fa-plus mr-1"></i> Crear Deudor
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- BANNER FLOTANTE DE NOTIFICACIÓN (TOAST) -->
+    <div id="toastNotificacion" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-emerald-400/40 text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
+        <i class="fa-solid fa-circle-check text-emerald-200 text-base"></i>
+        <span id="toastMensaje">Texto copiado al portapapeles</span>
+    </div>
+
+    <div id="modalDeudor" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
+                <h3 class="text-sm font-bold text-slate-100" id="modalDeudorTitulo">Agregar Nuevo Deudor</h3>
+                <button onclick="cerrarModalDeudor()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="guardarDeudor(event)" class="space-y-4">
+                <input type="hidden" id="editDeudorId">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Nombre del Deudor</label>
+                    <input type="text" id="nombreDeudor" required placeholder="EJ: PAPA, TIA PATY..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 uppercase">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60">
+                    <button type="button" onclick="cerrarModalDeudor()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalItem" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
+                <h3 class="text-sm font-bold text-slate-100" id="modalItemTitulo">Agregar Gasto / Cuenta</h3>
+                <button onclick="cerrarModalItem()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="formItem" onsubmit="guardarItem(event)" class="space-y-3">
+                <input type="hidden" id="itemDeudorId">
+                <input type="hidden" id="editItemId">
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Concepto o Descripción</label>
+                    <input type="text" id="conceptoItem" required placeholder="EJ: Crédito Itaú, Luz, Entel..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Valor Cuota ($)</label>
+                        <input type="number" id="montoItem" required min="0" step="1" placeholder="53000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Monto Prestado Total</label>
+                        <input type="number" id="montoPrestadoItem" min="0" step="1" placeholder="Opcional: 1000000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60">
+                    <span class="block text-[11px] font-semibold text-purple-300 mb-2"><i class="fa-solid fa-arrows-rotate mr-1"></i> Configuración de Cuotas (Opcional)</span>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">Cuota Actual</label>
+                            <input type="number" id="cuotaActual" min="0" placeholder="Ej: 1 (0 para futura)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">Total de Cuotas</label>
+                            <input type="number" id="cuotaTotal" min="1" placeholder="Ej: 24" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60">
+                    <button type="button" onclick="cerrarModalItem()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Guardar Gasto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalSeleccionarMes" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-check text-purple-400"></i> Seleccionar Mes
+                </h3>
+                <button onclick="cerrarModalSeleccionarMes()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex items-center justify-between mb-4 bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700">
+                <button onclick="cambiarAnioSelector(-1)" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-chevron-left"></i></button>
+                <span id="anioSelectorDisplay" class="font-bold font-mono text-purple-300 text-sm">2026</span>
+                <button onclick="cambiarAnioSelector(1)" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div id="gridMesesSelector" class="grid grid-cols-3 gap-2">
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL COPIAR MES -->
+    <div id="modalCopiarMes" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-copy text-amber-400"></i> Copiar Datos de Otro Mes
+                </h3>
+                <button onclick="cerrarModalCopiarMes()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-300 mb-3">
+                Selecciona el mes origen desde el cual deseas copiar los deudores y sus ítems hacia <strong class="text-purple-300" id="labelMesDestinoCopiar"></strong>.
+            </p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Mes Origen:</label>
+                    <select id="selectMesOrigenCopiar" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/60">
+                    <input type="checkbox" id="checkReiniciarPagadoCopiar" checked class="rounded bg-slate-800 border-slate-600 text-purple-600 focus:ring-0">
+                    <label for="checkReiniciarPagadoCopiar" class="text-xs text-slate-300 cursor-pointer">Reiniciar estado de pagado a sin pagar</label>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-4 mt-2 border-t border-slate-700/60">
+                <button type="button" onclick="cerrarModalCopiarMes()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
+                <button type="button" onclick="ejecutarCopiaMes()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Copiar Mes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalReglas" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-3 border-b border-slate-700/80 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-purple-400"></i> Reglas del Sistema de Cuotas
+                </h3>
+                <button onclick="cerrarModalReglas()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-300 leading-relaxed py-2">
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-minus text-amber-400 mt-0.5"></i>
+                    <div>
+                        <strong class="text-amber-300 block mb-0.5">Cuotas Futuras (0/X)</strong>
+                        <span>Las cuotas configuradas en <span class="font-mono font-bold text-amber-400">0/X</span> <strong>no suman</strong> al total cobrable del mes activo.</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-check text-emerald-400 mt-0.5"></i>
+                    <div>
+                        <strong class="text-emerald-300 block mb-0.5">Cuotas Finales (ej. 12/12)</strong>
+                        <span>Las cuotas en su último ciclo <span class="font-mono font-bold text-teal-300">(ej. 12/12)</span> <strong>SÍ suman</strong> en su mes actual. Al avanzar al siguiente mes pasarán automáticamente a estado <span class="text-emerald-400 font-bold">Completadas</span>.</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex items-start gap-2.5">
+                    <i class="fa-solid fa-calendar-plus text-purple-400 mt-0.5"></i>
+                    <div>
+                        <strong class="text-purple-300 block mb-0.5">Cambio de Mes (+1 Cuota)</strong>
+                        <span>Al hacer clic en "+1 Cuota (Nuevo Mes)", se reiniciarán las marcas de pagado y se incrementará en +1 el contador de cuotas activas.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60 mt-3">
+                <button type="button" onclick="cerrarModalReglas()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition w-full sm:w-auto">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DATOS_INICIALES_EJEMPLO = [
+            {
+                id: "d_mama",
+                nombre: "MAMA",
+                pagado: false,
+                items: [
+                    { id: "i_m1", concepto: "Net", monto: 9990, montoPrestado: null, cuotaAct: null, cuotaTot: null },
+                    { id: "i_m2", concepto: "CMR", monto: 106570, montoPrestado: null, cuotaAct: null, cuotaTot: null },
+                    { id: "i_m3", concepto: "Entel", monto: 12990, montoPrestado: null, cuotaAct: null, cuotaTot: null }
+                ]
+            },
+            {
+                id: "d_papa",
+                nombre: "PAPA",
+                pagado: false,
+                items: [
+                    { id: "i_p1", concepto: "Plan Entel", monto: 12990, montoPrestado: null, cuotaAct: null, cuotaTot: null },
+                    { id: "i_p2", concepto: "YouTube P", monto: 5500, montoPrestado: null, cuotaAct: null, cuotaTot: null },
+                    { id: "i_p3", concepto: "Crédito Itaú", monto: 53000, montoPrestado: null, cuotaAct: 17, cuotaTot: 24 },
+                    { id: "i_p4", concepto: "1M Mami", monto: 100000, montoPrestado: 1000000, cuotaAct: 9, cuotaTot: 10 },
+                    { id: "i_p5", concepto: "1M Itaú", monto: 52000, montoPrestado: 1000000, cuotaAct: 8, cuotaTot: 24 },
+                    { id: "i_p6", concepto: "Wallpanel", monto: 26000, montoPrestado: 136000, cuotaAct: 2, cuotaTot: 6 },
+                    { id: "i_p7", concepto: "luz Santiago", monto: 206386, montoPrestado: null, cuotaAct: 1, cuotaTot: 1 },
+                    { id: "i_p8", concepto: "TAG", monto: 11761, montoPrestado: null, cuotaAct: null, cuotaTot: null }
+                ]
+            },
+            {
+                id: "d_suegrita",
+                nombre: "SUEGRITA",
+                pagado: false,
+                items: [
+                    { id: "i_s1", concepto: "Avance 1M", monto: 103000, montoPrestado: 1000000, cuotaAct: 12, cuotaTot: 12 },
+                    { id: "i_s2", concepto: "Avance 1M Scotia", monto: 100000, montoPrestado: 1000000, cuotaAct: 0, cuotaTot: 12 },
+                    { id: "i_s3", concepto: "Avance 1M Scotia", monto: 100000, montoPrestado: 1000000, cuotaAct: 0, cuotaTot: 12 }
+                ]
+            },
+            {
+                id: "d_tiasole",
+                nombre: "TIA SOLE",
+                pagado: false,
+                items: [
+                    { id: "i_ts1", concepto: "Avance scotia", monto: 98000, montoPrestado: 500000, cuotaAct: 5, cuotaTot: 6 }
+                ]
+            },
+            {
+                id: "d_javi",
+                nombre: "JAVI",
+                pagado: false,
+                items: [
+                    { id: "i_j1", concepto: "600 CMR", monto: 60100, montoPrestado: null, cuotaAct: 9, cuotaTot: 12 },
+                    { id: "i_j2", concepto: "Itaú", monto: 70000, montoPrestado: null, cuotaAct: 6, cuotaTot: 12 },
+                    { id: "i_j3", concepto: "Ficcus", monto: 11000, montoPrestado: 54000, cuotaAct: 3, cuotaTot: 6 },
+                    { id: "i_j4", concepto: "Secadora", monto: 16300, montoPrestado: 159990, cuotaAct: 3, cuotaTot: 12 }
+                ]
+            },
+            {
+                id: "d_pancho",
+                nombre: "PANCHO",
+                pagado: false,
+                items: [
+                    { id: "i_pan1", concepto: "Compu", monto: 132000, montoPrestado: 680000, cuotaAct: 6, cuotaTot: 6 }
+                ]
+            },
+            {
+                id: "d_tiapaty",
+                nombre: "TIA PATY",
+                pagado: false,
+                items: [
+                    { id: "i_tp1", concepto: "CMR", monto: 522000, montoPrestado: 1482000, cuotaAct: 3, cuotaTot: 3 },
+                    { id: "i_tp2", concepto: "Cerámica", monto: 111000, montoPrestado: 331766, cuotaAct: 2, cuotaTot: 3 },
+                    { id: "i_tp3", concepto: "Gasto común", monto: 42000, montoPrestado: 124358, cuotaAct: 0, cuotaTot: 3 }
+                ]
+            },
+            {
+                id: "d_gloria",
+                nombre: "GLORIA",
+                pagado: false,
+                items: [
+                    { id: "i_g1", concepto: "1.2M Scotia", monto: 121000, montoPrestado: 1200000, cuotaAct: 1, cuotaTot: 12 },
+                    { id: "i_g2", concepto: "Colchón", monto: 33000, montoPrestado: 330000, cuotaAct: 2, cuotaTot: 10 }
+                ]
+            },
+            {
+                id: "d_matias",
+                nombre: "MATÍAS",
+                pagado: false,
+                items: [
+                    { id: "i_mat1", concepto: "Google one y YouTube", monto: 5500, montoPrestado: null, cuotaAct: null, cuotaTot: null }
+                ]
+            }
+        ];
+
+        let historialMeses = {};
+        let mesActualIndex = 8; // 8 = Septiembre
+        let anioActual = 2026;
+        let claveMesActual = "2026-09";
+        let datosDeudores = [];
+        let anioSeleccionModal = 2026;
+
+        const MESES_NOMBRES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+        const MESES_CORTOS = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+
+        function obtenerClaveMes(anio, mesIdx) {
+            return `${anio}-${String(mesIdx).padStart(2, '0')}`;
+        }
+
+        function inicializarEstado() {
+            const historialGuardado = localStorage.getItem('deudores_v8_historial');
+            const claveGuardada = localStorage.getItem('deudores_v8_clave_actual');
+
+            if (historialGuardado) {
+                try {
+                    historialMeses = JSON.parse(historialGuardado);
+                } catch(e) {
+                    historialMeses = {};
+                }
+            }
+
+            if (!historialMeses["2026-09"]) {
+                historialMeses["2026-09"] = JSON.parse(JSON.stringify(DATOS_INICIALES_EJEMPLO));
+            }
+
+            if (claveGuardada) {
+                claveMesActual = claveGuardada;
+                const partes = claveMesActual.split('-');
+                anioActual = parseInt(partes[0]);
+                mesActualIndex = parseInt(partes[1]);
+            } else {
+                mesActualIndex = 8;
+                anioActual = 2026;
+                claveMesActual = "2026-09";
+            }
+
+            cargarDatosMesActual();
+        }
+
+        function cargarDatosMesActual() {
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
+            }
+            datosDeudores = historialMeses[claveMesActual];
+            
+            document.getElementById('mesBadge').innerText = MESES_NOMBRES[mesActualIndex];
+            document.getElementById('labelMesAnioBoton').innerText = `${MESES_CORTOS[mesActualIndex]} ${anioActual}`;
+
+            renderizar();
+        }
+
+        function cambiarMesRapido(delta) {
+            mesActualIndex += delta;
+            if (mesActualIndex > 11) {
+                mesActualIndex = 0;
+                anioActual += 1;
+            } else if (mesActualIndex < 0) {
+                mesActualIndex = 11;
+                anioActual -= 1;
+            }
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            cargarDatosMesActual();
+            guardarDatos();
+        }
+
+        function abrirModalSeleccionarMes() {
+            anioSeleccionModal = anioActual;
+            renderizarGridMesesModal();
+            const modal = document.getElementById('modalSeleccionarMes');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function cerrarModalSeleccionarMes() {
+            const modal = document.getElementById('modalSeleccionarMes');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function abrirModalReglas() {
+            const modal = document.getElementById('modalReglas');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function cerrarModalReglas() {
+            const modal = document.getElementById('modalReglas');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function cambiarAnioSelector(delta) {
+            anioSeleccionModal += delta;
+            renderizarGridMesesModal();
+        }
+
+        function renderizarGridMesesModal() {
+            document.getElementById('anioSelectorDisplay').innerText = anioSeleccionModal;
+            const grid = document.getElementById('gridMesesSelector');
+            grid.innerHTML = "";
+
+            MESES_CORTOS.forEach((mesCorto, idx) => {
+                const claveTemp = obtenerClaveMes(anioSeleccionModal, idx);
+                const esMesSeleccionado = (idx === mesActualIndex && anioSeleccionModal === anioActual);
+                const tieneDatos = historialMeses[claveTemp] && historialMeses[claveTemp].length > 0;
+
+                let btnClass = "bg-slate-900 border-slate-700 text-slate-300 hover:bg-purple-600/30 hover:border-purple-500/50 hover:text-white";
+                if (esMesSeleccionado) {
+                    btnClass = "bg-purple-600 text-white font-bold border-purple-400 ring-2 ring-purple-400/50";
+                }
+
+                grid.innerHTML += `
+                    <button onclick="seleccionarMesDesdeModal(${idx})" class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 ${btnClass}">
+                        <span class="text-xs font-mono font-bold">${mesCorto}</span>
+                        ${tieneDatos ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : '<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>'}
+                    </button>
+                `;
+            });
+        }
+
+        function seleccionarMesDesdeModal(mesIdx) {
+            mesActualIndex = mesIdx;
+            anioActual = anioSeleccionModal;
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
+            }
+
+            cerrarModalSeleccionarMes();
+            cargarDatosMesActual();
+            localStorage.setItem('deudores_v8_clave_actual', claveMesActual);
+        }
+
+        function irAMesActual() {
+            const fechaActual = new Date();
+            mesActualIndex = fechaActual.getMonth(); // 0-11
+            anioActual = fechaActual.getFullYear();
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
+            }
+
+            cargarDatosMesActual();
+            guardarDatos();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function guardarDatos() {
+            historialMeses[claveMesActual] = datosDeudores;
+            localStorage.setItem('deudores_v8_historial', JSON.stringify(historialMeses));
+            localStorage.setItem('deudores_v8_clave_actual', claveMesActual);
+            renderizar();
+        }
+
+        function formatearMoneda(monto) {
+            return '$' + Math.round(monto).toLocaleString('es-CL');
+        }
+
+        function renderizar() {
+            const busqueda = document.getElementById('inputBuscar').value.toLowerCase().trim();
+            const filtroEstado = document.getElementById('filtroEstado').value;
+
+            const contenedor = document.getElementById('contenedorDeudores');
+            const emptyState = document.getElementById('emptyState');
+
+            contenedor.innerHTML = "";
+
+            let deudoresMostrados = 0;
+
+            datosDeudores.forEach(d => {
+                let subtotalDeudor = 0;
+                let itemsProcesados = [];
+
+                d.items.forEach(i => {
+                    const esCuotaCero = i.cuotaAct === 0;
+                    const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+                    const esUltimaCuota = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct === i.cuotaTot;
+
+                    if (!esCuotaCero && !esCuotaCompletada) {
+                        subtotalDeudor += i.monto;
+                    }
+
+                    let coincideFiltro = true;
+                    if (filtroEstado === 'activos' && (esCuotaCero || esCuotaCompletada)) coincideFiltro = false;
+                    if (filtroEstado === 'cero' && !esCuotaCero) coincideFiltro = false;
+                    if (filtroEstado === 'completadas' && !esCuotaCompletada) coincideFiltro = false;
+
+                    if (coincideFiltro) {
+                        itemsProcesados.push({
+                            ...i,
+                            esCuotaCero,
+                            esCuotaCompletada,
+                            esUltimaCuota
+                        });
+                    }
+                });
+
+                const coincideTexto = d.nombre.toLowerCase().includes(busqueda) || 
+                                     d.items.some(it => it.concepto.toLowerCase().includes(busqueda));
+                
+                const coincideEstadoDeudor = (filtroEstado !== 'pagados') || (filtroEstado === 'pagados' && d.pagado);
+
+                if (coincideTexto && coincideEstadoDeudor && (itemsProcesados.length > 0 || busqueda === '')) {
+                    deudoresMostrados++;
+
+                    let itemsHtml = itemsProcesados.map(item => {
+                        let badgeCuota = '';
+                        if (item.cuotaTot) {
+                            const act = item.cuotaAct !== null ? item.cuotaAct : 0;
+                            const tot = item.cuotaTot;
+
+                            if (item.esCuotaCero) {
+                                badgeCuota = `<span class="bg-amber-950/80 text-amber-300 border border-amber-700/60 text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">0/${tot} (Futura)</span>`;
+                            } else if (item.esCuotaCompletada) {
+                                badgeCuota = `<span class="bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">Finalizada</span>`;
+                            } else if (item.esUltimaCuota) {
+                                badgeCuota = `<span class="bg-teal-950/80 text-teal-300 border border-teal-700/60 text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">${act}/${tot} (Última)</span>`;
+                            } else {
+                                badgeCuota = `<span class="bg-purple-950/80 text-purple-300 border border-purple-700/60 text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">${act}/${tot}</span>`;
+                            }
+                        }
+
+                        const prestadoTexto = item.montoPrestado ? `<span class="text-[10px] text-slate-500 font-mono ml-1">(${formatearMoneda(item.montoPrestado)})</span>` : '';
+
+                        return `
+                            <div class="flex items-center justify-between py-2 border-b border-slate-700/40 text-xs">
+                                <div class="flex items-center gap-1.5 min-w-0 pr-2">
+                                    <span class="text-slate-200 font-medium truncate">${item.concepto}</span>
+                                    ${prestadoTexto}
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <div class="flex items-center gap-1">
+                                        ${badgeCuota}
+                                    </div>
+                                    <span class="font-mono font-bold ${item.esCuotaCero || item.esCuotaCompletada ? 'text-slate-500 line-through' : 'text-slate-200'}">${formatearMoneda(item.monto)}</span>
+                                    <button onclick="abrirModalItem('${d.id}', '${item.id}')" class="text-slate-500 hover:text-purple-400 p-0.5 transition" title="Editar"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                    <button onclick="eliminarItem('${d.id}', '${item.id}')" class="text-slate-500 hover:text-rose-400 p-0.5 transition" title="Eliminar"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    contenedor.innerHTML += `
+                        <div class="bg-slate-800 border ${d.pagado ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-700/80'} rounded-2xl p-4 shadow-lg flex flex-col justify-between transition">
+                            <div>
+                                <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-700/80">
+                                    <div class="flex items-center gap-2.5">
+                                        <button onclick="togglePagadoDeudor('${d.id}')" class="w-6 h-6 rounded-lg flex items-center justify-center border transition ${d.pagado ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'bg-slate-900 border-slate-600 text-transparent hover:border-purple-400'}" title="Marcar deudor como totalmente pagado este mes">
+                                            <i class="fa-solid fa-check text-xs font-bold"></i>
+                                        </button>
+                                        <h3 class="font-bold text-sm sm:text-base ${d.pagado ? 'text-emerald-400 line-through' : 'text-white'} uppercase tracking-wide">${d.nombre}</h3>
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-1.5">
+                                        <button onclick="abrirModalItem('${d.id}')" class="bg-purple-600 hover:bg-purple-500 text-white w-7 h-7 rounded-lg transition font-bold flex items-center justify-center shadow-sm" title="Agregar gasto a ${d.nombre}">
+                                            <i class="fa-solid fa-plus text-xs"></i>
+                                        </button>
+                                        <button onclick="exportarWhatsAppDeudor('${d.id}')" class="bg-green-600/20 hover:bg-green-600/40 border border-green-500/40 text-green-400 text-[10px] px-2 py-1 rounded-lg transition font-medium flex items-center gap-1" title="Copiar resumen de este deudor para WhatsApp">
+                                            <i class="fa-brands fa-whatsapp text-xs"></i> WhatsApp
+                                        </button>
+                                        <button onclick="abrirModalDeudor('${d.id}')" class="text-slate-500 hover:text-white p-1 text-xs" title="Editar Nombre"><i class="fa-solid fa-pen"></i></button>
+                                        <button onclick="eliminarDeudor('${d.id}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Eliminar Deudor"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-0.5">
+                                    ${itemsHtml || '<p class="text-slate-500 text-xs py-2 italic text-center">Sin gastos ni cuentas.</p>'}
+                                </div>
+                            </div>
+
+                            <div class="pt-3 mt-3 border-t border-slate-700/80 flex items-center justify-between">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">TOTAL ${MESES_NOMBRES[mesActualIndex]} ${anioActual}</span>
+                                <span class="font-mono font-black text-lg ${d.pagado ? 'text-emerald-400 line-through' : 'text-purple-300'}">${formatearMoneda(subtotalDeudor)}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            if (deudoresMostrados === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+        }
+
+        function toggleBotonBorrarBusqueda() {
+            const input = document.getElementById('inputBuscar');
+            const btn = document.getElementById('btnLimpiarBusqueda');
+            if (input.value.trim() !== '') {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        function limpiarBusqueda() {
+            const input = document.getElementById('inputBuscar');
+            input.value = '';
+            toggleBotonBorrarBusqueda();
+            renderizar();
+            input.focus();
+        }
+
+        function togglePagadoDeudor(deudorId) {
+            const deudor = datosDeudores.find(d => d.id === deudorId);
+            if (deudor) {
+                deudor.pagado = !deudor.pagado;
+                guardarDatos();
+            }
+        }
+
+        function abrirModalDeudor(id = null) {
+            const modal = document.getElementById('modalDeudor');
+            document.getElementById('editDeudorId').value = id || "";
+            document.getElementById('modalDeudorTitulo').innerText = id ? "Editar Deudor" : "Agregar Nuevo Deudor";
+
+            if (id) {
+                const deudor = datosDeudores.find(d => d.id === id);
+                if (deudor) {
+                    document.getElementById('nombreDeudor').value = deudor.nombre;
+                }
+            } else {
+                document.getElementById('nombreDeudor').value = "";
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function cerrarModalDeudor() {
+            const modal = document.getElementById('modalDeudor');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function guardarDeudor(e) {
+            e.preventDefault();
+            const id = document.getElementById('editDeudorId').value;
+            const nombre = document.getElementById('nombreDeudor').value.trim().toUpperCase();
+
+            if (!nombre) return;
+
+            let nuevoDeudorId = id;
+
+            if (id) {
+                const deudor = datosDeudores.find(d => d.id === id);
+                if (deudor) {
+                    deudor.nombre = nombre;
+                }
+            } else {
+                nuevoDeudorId = "d_" + Date.now();
+                datosDeudores.push({
+                    id: nuevoDeudorId,
+                    nombre: nombre,
+                    pagado: false,
+                    items: []
+                });
+            }
+            cerrarModalDeudor();
+            guardarDatos();
+
+            if (!id) {
+                abrirModalItem(nuevoDeudorId);
+            }
+        }
+
+        function eliminarDeudor(id) {
+            if (confirm("¿Seguro que deseas eliminar este deudor y todas sus cuentas?")) {
+                datosDeudores = datosDeudores.filter(d => d.id !== id);
+                guardarDatos();
+            }
+        }
+
+        function abrirModalItem(deudorId, itemId = null) {
+            const modal = document.getElementById('modalItem');
+            document.getElementById('itemDeudorId').value = deudorId;
+            document.getElementById('editItemId').value = itemId || "";
+            document.getElementById('modalItemTitulo').innerText = itemId ? "Editar Gasto" : "Agregar Gasto";
+
+            if (itemId) {
+                const deudor = datosDeudores.find(d => d.id === deudorId);
+                const item = deudor.items.find(i => i.id === itemId);
+                if (item) {
+                    document.getElementById('conceptoItem').value = item.concepto;
+                    document.getElementById('montoItem').value = item.monto;
+                    document.getElementById('montoPrestadoItem').value = item.montoPrestado || "";
+                    document.getElementById('cuotaActual').value = item.cuotaAct !== null ? item.cuotaAct : "";
+                    document.getElementById('cuotaTotal').value = item.cuotaTot || "";
+                }
+            } else {
+                document.getElementById('formItem').reset();
+                document.getElementById('itemDeudorId').value = deudorId;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function cerrarModalItem() {
+            const modal = document.getElementById('modalItem');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function guardarItem(e) {
+            e.preventDefault();
+            const deudorId = document.getElementById('itemDeudorId').value;
+            const itemId = document.getElementById('editItemId').value;
+
+            const concepto = document.getElementById('conceptoItem').value.trim();
+            const monto = parseFloat(document.getElementById('montoItem').value) || 0;
+            const montoPrestadoInput = document.getElementById('montoPrestadoItem').value;
+            const montoPrestado = montoPrestadoInput ? parseFloat(montoPrestadoInput) : null;
+
+            const cActInput = document.getElementById('cuotaActual').value;
+            const cTotInput = document.getElementById('cuotaTotal').value;
+
+            const cuotaAct = cActInput !== "" ? parseInt(cActInput) : null;
+            const cuotaTot = cTotInput !== "" ? parseInt(cTotInput) : null;
+
+            const deudor = datosDeudores.find(d => d.id === deudorId);
+            if (!deudor) return;
+
+            if (itemId) {
+                const item = deudor.items.find(i => i.id === itemId);
+                if (item) {
+                    item.concepto = concepto;
+                    item.monto = monto;
+                    item.montoPrestado = montoPrestado;
+                    item.cuotaAct = cuotaAct;
+                    item.cuotaTot = cuotaTot;
+                }
+            } else {
+                deudor.items.push({
+                    id: "i_" + Date.now(),
+                    concepto: concepto,
+                    monto: monto,
+                    montoPrestado: montoPrestado,
+                    cuotaAct: cuotaAct,
+                    cuotaTot: cuotaTot
+                });
+            }
+
+            cerrarModalItem();
+            guardarDatos();
+        }
+
+        function eliminarItem(deudorId, itemId) {
+            const deudor = datosDeudores.find(d => d.id === deudorId);
+            if (deudor) {
+                deudor.items = deudor.items.filter(i => i.id !== itemId);
+                guardarDatos();
+            }
+        }
+
+        function vaciarMesActual() {
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            if (confirm(`¿Estás seguro de que deseas ELIMINAR TODOS los datos de ${mesNombre} ${anioActual}?\n\nEsta acción dejará el mes totalmente vacío.`)) {
+                datosDeudores = [];
+                guardarDatos();
+                mostrarToast(`Datos de ${mesNombre} ${anioActual} eliminados.`);
+            }
+        }
+
+        function abrirModalCopiarMes() {
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            document.getElementById('labelMesDestinoCopiar').innerText = `${mesNombre} ${anioActual}`;
+            
+            const select = document.getElementById('selectMesOrigenCopiar');
+            select.innerHTML = "";
+
+            const clavesExistentes = Object.keys(historialMeses).filter(k => historialMeses[k] && historialMeses[k].length > 0 && k !== claveMesActual);
+
+            if (clavesExistentes.length === 0) {
+                mostrarToast("No hay otros meses con datos para copiar.");
+                return;
+            }
+
+            clavesExistentes.forEach(clave => {
+                const partes = clave.split('-');
+                const a = partes[0];
+                const mIdx = parseInt(partes[1]);
+                const option = document.createElement('option');
+                option.value = clave;
+                option.innerText = `${MESES_NOMBRES[mIdx]} ${a} (${historialMeses[clave].length} deudores)`;
+                select.appendChild(option);
+            });
+
+            const modal = document.getElementById('modalCopiarMes');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function cerrarModalCopiarMes() {
+            const modal = document.getElementById('modalCopiarMes');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function ejecutarCopiaMes() {
+            const claveOrigen = document.getElementById('selectMesOrigenCopiar').value;
+            const reiniciarPagado = document.getElementById('checkReiniciarPagadoCopiar').checked;
+
+            if (!claveOrigen || !historialMeses[claveOrigen]) {
+                cerrarModalCopiarMes();
+                return;
+            }
+
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            if (datosDeudores.length > 0) {
+                if (!confirm(`El mes actual (${mesNombre} ${anioActual}) ya tiene datos. ¿Deseas sobreescribirlo con los datos del mes seleccionado?`)) {
+                    return;
+                }
+            }
+
+            const copia = JSON.parse(JSON.stringify(historialMeses[claveOrigen]));
+            if (reiniciarPagado) {
+                copia.forEach(d => d.pagado = false);
+            }
+
+            datosDeudores = copia;
+            guardarDatos();
+            cerrarModalCopiarMes();
+            mostrarToast(`Datos copiados exitosamente a ${mesNombre} ${anioActual}`);
+        }
+
+        function avanzarMesGlobal() {
+            if (!confirm("¿Deseas avanzar al NUEVO MES?\n\n- Se creará el siguiente mes con la copia de los deudores.\n- Se reiniciarán las marcas de 'PAGADO'.\n- Se sumará +1 cuota a las cuentas activas.")) {
+                return;
+            }
+
+            historialMeses[claveMesActual] = JSON.parse(JSON.stringify(datosDeudores));
+
+            mesActualIndex += 1;
+            if (mesActualIndex > 11) {
+                mesActualIndex = 0;
+                anioActual += 1;
+            }
+
+            const nuevaClave = obtenerClaveMes(anioActual, mesActualIndex);
+            
+            if (!historialMeses[nuevaClave] || historialMeses[nuevaClave].length === 0) {
+                const nuevosDatos = JSON.parse(JSON.stringify(datosDeudores));
+                nuevosDatos.forEach(deudor => {
+                    deudor.pagado = false;
+                    deudor.items.forEach(item => {
+                        if (item.cuotaTot && item.cuotaTot > 0) {
+                            if (item.cuotaAct === null || item.cuotaAct === undefined) {
+                                item.cuotaAct = 1;
+                            } else {
+                                item.cuotaAct += 1;
+                            }
+                        }
+                    });
+                });
+                historialMeses[nuevaClave] = nuevosDatos;
+            }
+
+            claveMesActual = nuevaClave;
+            cargarDatosMesActual();
+            guardarDatos();
+        }
+
+        function exportarRespaldoJSON() {
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            const dataToExport = {
+                mesIndex: mesActualIndex,
+                anio: anioActual,
+                claveMes: claveMesActual,
+                mesNombre: mesNombre,
+                fechaExportacion: new Date().toISOString(),
+                historialCompleto: historialMeses,
+                deudoresMesActual: datosDeudores
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `Respaldo_Deudores_${mesNombre}_${anioActual}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importarRespaldoJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && parsed.historialCompleto) {
+                        historialMeses = parsed.historialCompleto;
+                        if (parsed.claveMes && historialMeses[parsed.claveMes]) {
+                            claveMesActual = parsed.claveMes;
+                            const partes = claveMesActual.split('-');
+                            anioActual = parseInt(partes[0]);
+                            mesActualIndex = parseInt(partes[1]);
+                        }
+                        cargarDatosMesActual();
+                        guardarDatos();
+                    } else if (parsed && Array.isArray(parsed.deudores)) {
+                        datosDeudores = parsed.deudores;
+                        guardarDatos();
+                    }
+                } catch(err) {
+                    console.error("Error al importar JSON:", err);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = "";
+        }
+
+        function exportarResumenWhatsApp() {
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            let texto = `*Gastos / Cuentas - ${mesNombre} ${anioActual}*\n\n`;
+            let totalGeneral = 0;
+
+            datosDeudores.forEach(d => {
+                let subtotalDeudor = 0;
+                let lineas = [];
+
+                d.items.forEach(i => {
+                    const esCuotaCero = i.cuotaAct === 0;
+                    const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+                    let detalleCuota = "";
+                    if (i.cuotaTot) {
+                        detalleCuota = ` - ${i.cuotaAct !== null ? i.cuotaAct : 0}/${i.cuotaTot}`;
+                    }
+
+                    if (esCuotaCero) {
+                        lineas.push(`  • ${i.concepto}: $${i.monto.toLocaleString('es-CL')}${detalleCuota} (Cuota 0)`);
+                    } else if (esCuotaCompletada) {
+                        lineas.push(`  • ${i.concepto}: $${i.monto.toLocaleString('es-CL')}${detalleCuota} (Completada)`);
+                    } else {
+                        subtotalDeudor += i.monto;
+                        lineas.push(`  • ${i.concepto}: $${i.monto.toLocaleString('es-CL')}${detalleCuota}`);
+                    }
+                });
+
+                totalGeneral += subtotalDeudor;
+                const estadoPago = d.pagado ? " (PAGADO)" : "";
+                texto += `• *${d.nombre}*${estadoPago}:\n${lineas.join('\n')}\n  *TOTAL: $${subtotalDeudor.toLocaleString('es-CL')}*\n\n`;
+            });
+
+            texto += `*TOTAL GENERAL MES: $${totalGeneral.toLocaleString('es-CL')}*`;
+
+            copiarAlPortapapeles(texto, "Resumen general copiado para WhatsApp");
+        }
+
+        function exportarWhatsAppDeudor(deudorId) {
+            const deudor = datosDeudores.find(d => d.id === deudorId);
+            if (!deudor) return;
+
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            let subtotalDeudor = 0;
+            let lineas = [];
+
+            deudor.items.forEach(i => {
+                const esCuotaCero = i.cuotaAct === 0;
+                const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+                let detalleCuota = "";
+                if (i.cuotaTot) {
+                    detalleCuota = ` (Cuota ${i.cuotaAct !== null ? i.cuotaAct : 0}/${i.cuotaTot})`;
+                }
+
+                if (esCuotaCero) {
+                    lineas.push(`• ${i.concepto}: $${i.monto.toLocaleString('es-CL')}${detalleCuota} _[Cuota 0 - Futura]_`);
+                } else if (esCuotaCompletada) {
+                    lineas.push(`• ${i.concepto}: $${i.monto.toLocaleString('es-CL')}${detalleCuota} _[Finalizada]_`);
+                } else {
+                    subtotalDeudor += i.monto;
+                    lineas.push(`• ${i.concepto}: $${i.monto.toLocaleString('es-CL')}${detalleCuota}`);
+                }
+            });
+
+            const estadoPago = deudor.pagado ? " ✅ *PAGADO*" : "";
+            let texto = `Hola *${deudor.nombre}*, este es el detalle de tus cuentas para *${mesNombre} ${anioActual}*:${estadoPago}\n\n`;
+
+            if (lineas.length > 0) {
+                texto += lineas.join('\n') + '\n\n';
+            } else {
+                texto += `_No tienes cuentas o gastos registrados este mes._\n\n`;
+            }
+
+            texto += `👉 *TOTAL A PAGAR: $${subtotalDeudor.toLocaleString('es-CL')}*`;
+
+            copiarAlPortapapeles(texto, `¡Resumen de ${deudor.nombre} copiado!`);
+        }
+
+        let toastTimeout;
+        function copiarAlPortapapeles(texto, mensajeExito) {
+            const inputAux = document.createElement("textarea");
+            inputAux.value = texto;
+            document.body.appendChild(inputAux);
+            inputAux.select();
+            document.execCommand("copy");
+            document.body.removeChild(inputAux);
+
+            mostrarToast(mensajeExito);
+        }
+
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById('toastNotificacion');
+            const toastMensaje = document.getElementById('toastMensaje');
+            
+            toastMensaje.innerText = mensaje;
+            
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function exportarPDF() {
+            const mesNombre = MESES_NOMBRES[mesActualIndex];
+            let totalGeneralMes = 0;
+            let totalCobrado = 0;
+            let totalPendiente = 0;
+
+            let htmlContenido = `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background-color: #ffffff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #7c3aed; padding-bottom: 12px; margin-bottom: 20px;">
+                        <div>
+                            <h1 style="margin: 0; color: #4c1d95; font-size: 20px;">Reporte de Deudores y Cuotas</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">Período: <strong>${mesNombre} ${anioActual}</strong></p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 10px; color: #94a3b8;">Generado el ${new Date().toLocaleDateString('es-CL')}</span>
+                        </div>
+                    </div>
+            `;
+
+            datosDeudores.forEach(d => {
+                let subtotalDeudor = 0;
+                let filasItems = "";
+
+                d.items.forEach(i => {
+                    const esCuotaCero = i.cuotaAct === 0;
+                    const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+                    let estadoCuota = i.cuotaTot ? `${i.cuotaAct !== null ? i.cuotaAct : 0}/${i.cuotaTot}` : '-';
+                    let nota = '';
+
+                    if (esCuotaCero) {
+                        nota = '<span style="color: #d97706; font-size: 10px;">(Cuota 0 - No suma)</span>';
+                    } else if (esCuotaCompletada) {
+                        nota = '<span style="color: #059669; font-size: 10px;">(Finalizada - No suma)</span>';
+                    } else {
+                        subtotalDeudor += i.monto;
+                    }
+
+                    filasItems += `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 6px 8px; font-size: 11px;">${i.concepto} ${nota}</td>
+                            <td style="padding: 6px 8px; font-size: 11px; text-align: center;">${estadoCuota}</td>
+                            <td style="padding: 6px 8px; font-size: 11px; text-align: right; font-family: monospace;">${formatearMoneda(i.monto)}</td>
+                        </tr>
+                    `;
+                });
+
+                totalGeneralMes += subtotalDeudor;
+                if (d.pagado) totalCobrado += subtotalDeudor;
+
+                htmlContenido += `
+                    <div style="margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; page-break-inside: avoid;">
+                        <div style="background-color: ${d.pagado ? '#f0fdf4' : '#f8fafc'}; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #0f172a; font-size: 13px;">${d.nombre}</strong>
+                            <span style="font-size: 11px; font-weight: bold; color: ${d.pagado ? '#166534' : '#6b21a8'};">
+                                ${d.pagado ? '✓ PAGADO' : 'PENDIENTE'} - Total: ${formatearMoneda(subtotalDeudor)}
+                            </span>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; color: #475569; font-size: 10px; text-transform: uppercase;">
+                                    <th style="padding: 4px 8px; text-align: left;">Concepto</th>
+                                    <th style="padding: 4px 8px; text-align: center; width: 80px;">Cuota</th>
+                                    <th style="padding: 4px 8px; text-align: right; width: 100px;">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filasItems || '<tr><td colspan="3" style="padding: 6px; text-align: center; font-size: 11px; color: #94a3b8;">Sin conceptos</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            totalPendiente = Math.max(0, totalGeneralMes - totalCobrado);
+
+            htmlContenido += `
+                    <div style="margin-top: 24px; padding: 12px; background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; page-break-inside: avoid;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                            <span>Total del Mes:</span>
+                            <strong style="font-family: monospace; font-size: 14px; color: #6b21a8;">${formatearMoneda(totalGeneralMes)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #166534; margin-bottom: 2px;">
+                            <span>Cobrado:</span>
+                            <span style="font-family: monospace;">${formatearMoneda(totalCobrado)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #b45309;">
+                            <span>Pendiente:</span>
+                            <span style="font-family: monospace;">${formatearMoneda(totalPendiente)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const elem = document.createElement('div');
+            elem.innerHTML = htmlContenido;
+
+            const opt = {
+                margin:       10,
+                filename:     `Reporte_Deudores_${mesNombre}_${anioActual}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(elem).save();
+        }
+
+        window.onload = inicializarEstado;
+    </script>
+</body>
+</html>
