@@ -26,6 +26,7 @@
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         ::-webkit-scrollbar {
             width: 6px;
@@ -59,12 +60,12 @@
                                 <span class="truncate">Control de Deudores</span>
                                 <span id="mesBadge" class="bg-purple-900/60 text-purple-300 text-[9px] sm:text-xs px-2 py-0.5 rounded-full border border-purple-500/40 font-mono uppercase shrink-0">SEPTIEMBRE</span>
                             </h1>
-                            <p class="text-[11px] text-slate-400 hidden sm:block">Control automático de cuotas, saldos e historial mensual en la nube.</p>
+                            <p class="text-[11px] text-slate-400 hidden sm:block">Control automático de cuotas, saldos e historial mensual en Supabase.</p>
                         </div>
                     </div>
 
-                    <!-- Cloud Sync Indicator Badge (Ubicación limpia en móviles y escritorio) -->
-                    <div id="cloudStatusBadge" class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700/80 px-2 py-1 rounded-xl text-[10px] font-mono text-slate-300 shadow-inner shrink-0" title="Estado de sincronización en la nube">
+                    <!-- Supabase Sync Indicator Badge -->
+                    <div id="cloudStatusBadge" onclick="abrirModalConfigSupabase()" class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700/80 px-2 py-1 rounded-xl text-[10px] font-mono text-slate-300 shadow-inner shrink-0 cursor-pointer hover:border-purple-500 transition" title="Haz clic para configurar Supabase">
                         <span id="cloudDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
                         <span id="cloudText" class="truncate max-w-[90px] sm:max-w-none text-[10px]">Conectando...</span>
                     </div>
@@ -180,6 +181,42 @@
         <span id="toastMensaje">Texto copiado al portapapeles</span>
     </div>
 
+    <!-- MODAL CONFIGURACIÓN SUPABASE -->
+    <div id="modalConfigSupabase" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-database text-purple-400"></i> Conectar con Supabase
+                </h3>
+                <button onclick="cerrarModalConfigSupabase()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+                Ingresa los datos de tu proyecto de Supabase (URL y Anon Key) por única vez. Se guardarán en tu navegador para sincronizar automáticamente.
+            </p>
+            <form onsubmit="guardarCredencialesSupabase(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Supabase URL</label>
+                    <input type="text" id="inputSupabaseUrl" required placeholder="https://tu-proyecto.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Supabase Anon Key</label>
+                    <input type="password" id="inputSupabaseKey" required placeholder="eyJhbGciOi..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>¿Quieres eliminar las credenciales y usar solo modo local?</span>
+                    <button type="button" onclick="desconectarSupabase()" class="text-rose-400 hover:text-rose-300 font-semibold underline text-[10px]">Desconectar</button>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60">
+                    <button type="button" onclick="cerrarModalConfigSupabase()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Guardar y Conectar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- OTROS MODALES (Deudor, Item, Seleccionar Mes, Copiar Mes, Reglas) -->
     <div id="modalDeudor" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
@@ -328,7 +365,7 @@
                     <i class="fa-solid fa-circle-check text-emerald-400 mt-0.5"></i>
                     <div>
                         <strong class="text-emerald-300 block mb-0.5">Cuotas Finales (ej. 12/12)</strong>
-                        <span>Las cuotas en su último ciclo <span class="font-mono font-bold text-teal-300">(ej. 12/12)</span> <strong>SÍ suman</strong> en su mes actual. Al avanzar al siguiente mes pasarán automáticamente a estado <span class="text-emerald-400 font-bold">Completadas</span>.</span>
+                        <span>Las cuotas en su último ciclo <span class="font-mono font-bold text-teal-300">(ej. 12/12)</span> <strong>SÍ suman</strong> in su mes actual. Al avanzar al siguiente mes pasarán automáticamente a estado <span class="text-emerald-400 font-bold">Completadas</span>.</span>
                     </div>
                 </div>
 
@@ -347,41 +384,12 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'deudores-a5fb1';
-        
-        let firebaseConfig;
-        try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config 
-                ? JSON.parse(__firebase_config) 
-                : {
-                    apiKey: "AIzaSyDJ7AkadJPqcizWx3nY4YAWPkN2ZkiUmm8",
-                    authDomain: "deudores-a5fb1.firebaseapp.com",
-                    projectId: "deudores-a5fb1",
-                    storageBucket: "deudores-a5fb1.firebasestorage.app",
-                    messagingSenderId: "841198300636",
-                    appId: "1:841198300636:web:dddd40131e1832d32a7319"
-                };
-        } catch(e) {
-            firebaseConfig = {
-                apiKey: "AIzaSyDJ7AkadJPqcizWx3nY4YAWPkN2ZkiUmm8",
-                authDomain: "deudores-a5fb1.firebaseapp.com",
-                projectId: "deudores-a5fb1",
-                storageBucket: "deudores-a5fb1.firebasestorage.app",
-                messagingSenderId: "841198300636",
-                appId: "1:841198300636:web:dddd40131e1832d32a7319"
-            };
-        }
-
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let db, auth, currentUser = null;
+    <script>
+        let supabaseClient = null;
         let isSyncingFromCloud = false;
-        let modoOfflineForzado = false;
+
+        const DEFAULT_SUPABASE_URL = "https://svwppyiycxihbhmgbfdu.supabase.co";
+        const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2d3BweWl5Y3hpaGJobWdiZmR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODI5MzcsImV4cCI6MjEwNzA1ODkzN30.InK7ybizXAUa_fBikSdpfoQiUMbvoQ5ESrdJK1oYD5k";
 
         const DATOS_INICIALES_EJEMPLO = [
             {
@@ -489,48 +497,68 @@
             return `${anio}-${String(mesIdx).padStart(2, '0')}`;
         }
 
-        async function initFirebase() {
-            try {
-                if (!firebaseConfig.apiKey) {
-                    throw new Error("Configuración de Firebase no disponible.");
-                }
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+        function initSupabase() {
+            let url = localStorage.getItem('supabase_url');
+            let key = localStorage.getItem('supabase_key');
 
+            if (!url || !key) {
+                url = DEFAULT_SUPABASE_URL;
+                key = DEFAULT_SUPABASE_KEY;
+                localStorage.setItem('supabase_url', url);
+                localStorage.setItem('supabase_key', key);
+            }
+
+            if (url && key) {
                 try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (authErr) {
-                    console.warn("Fallo token personalizado, intentando autenticación anónima directa...", authErr);
-                    await signInAnonymously(auth);
+                    supabaseClient = window.supabase.createClient(url, key);
+                    actualizarBadgeNube("sincronizando", "Conectando...");
+                    sincronizarDesdeSupabase();
+                } catch(e) {
+                    console.error("Error iniciando Supabase:", e);
+                    actualizarBadgeNube("offline", "Configurar Supabase");
+                    inicializarEstadoLocal();
                 }
-
-                currentUser = auth.currentUser;
-                if (currentUser) {
-                    actualizarBadgeNube("sincronizado", "Conectado a la nube");
-                    sincronizarDesdeNube();
-                } else {
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            currentUser = user;
-                            actualizarBadgeNube("sincronizado", "Conectado a la nube");
-                            sincronizarDesdeNube();
-                        } else {
-                            actualizarBadgeNube("offline", "Modo Local");
-                            inicializarEstadoLocal();
-                        }
-                    });
-                }
-
-            } catch (err) {
-                console.warn("Aviso: Firebase no disponible o bloqueado por reglas/red. Usando almacenamiento local automático.", err);
-                modoOfflineForzado = true;
-                actualizarBadgeNube("offline", "Modo Local (Seguro)");
+            } else {
+                actualizarBadgeNube("offline", "Configurar Supabase");
                 inicializarEstadoLocal();
+            }
+        }
+
+        window.abrirModalConfigSupabase = function() {
+            document.getElementById('inputSupabaseUrl').value = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+            document.getElementById('inputSupabaseKey').value = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
+            const modal = document.getElementById('modalConfigSupabase');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.cerrarModalConfigSupabase = function() {
+            const modal = document.getElementById('modalConfigSupabase');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        window.guardarCredencialesSupabase = function(e) {
+            e.preventDefault();
+            const url = document.getElementById('inputSupabaseUrl').value.trim();
+            const key = document.getElementById('inputSupabaseKey').value.trim();
+
+            localStorage.setItem('supabase_url', url);
+            localStorage.setItem('supabase_key', key);
+
+            cerrarModalConfigSupabase();
+            initSupabase();
+            mostrarToast("Credenciales guardadas y sincronizadas");
+        }
+
+        window.desconectarSupabase = function() {
+            if (confirm("¿Seguro que deseas desconectar Supabase? La aplicación funcionará solo en tu navegador.")) {
+                localStorage.removeItem('supabase_url');
+                localStorage.removeItem('supabase_key');
+                supabaseClient = null;
+                cerrarModalConfigSupabase();
+                actualizarBadgeNube("offline", "Configurar Supabase");
+                mostrarToast("Desconectado de Supabase");
             }
         }
 
@@ -581,47 +609,71 @@
             cargarDatosMesActual();
         }
 
-        function sincronizarDesdeNube() {
-            if (modoOfflineForzado || !currentUser || !db) {
+        async function sincronizarDesdeSupabase() {
+            if (!supabaseClient) {
                 inicializarEstadoLocal();
                 return;
             }
-            actualizarBadgeNube("sincronizando", "Sincronizando...");
 
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'historial_deudores_v8');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('app_data')
+                    .select('*')
+                    .eq('id', 'historial_principal')
+                    .single();
 
-            onSnapshot(docRef, (docSnap) => {
-                isSyncingFromCloud = true;
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data && data.historialMeses) {
-                        historialMeses = data.historialMeses;
-                    }
-                    if (data && data.claveMesActual) {
-                        claveMesActual = data.claveMesActual;
+                if (error && error.code !== 'PGRST116') {
+                    console.warn("Error leyendo de Supabase:", error);
+                    actualizarBadgeNube("offline", "Error Supabase");
+                    inicializarEstadoLocal();
+                    return;
+                }
+
+                if (data && data.payload) {
+                    isSyncingFromCloud = true;
+                    historialMeses = data.payload.historialMeses || {};
+                    if (data.payload.claveMesActual) {
+                        claveMesActual = data.payload.claveMesActual;
                         const partes = claveMesActual.split('-');
                         anioActual = parseInt(partes[0]);
                         mesActualIndex = parseInt(partes[1]);
                     }
+                    isSyncingFromCloud = false;
                 } else {
                     historialMeses["2026-09"] = JSON.parse(JSON.stringify(DATOS_INICIALES_EJEMPLO));
-                    guardarDatosNube();
+                    await guardarDatosSupabase();
                 }
 
                 cargarDatosMesActual();
                 actualizarBadgeNube("sincronizado", "Sincronizado");
-                isSyncingFromCloud = false;
-            }, (error) => {
-                console.warn("Aviso de Firestore (reglas o red). Cambiando a Modo Local seguro.", error);
-                modoOfflineForzado = true;
-                actualizarBadgeNube("offline", "Modo Local (Seguro)");
+
+                // Configurar Realtime
+                supabaseClient
+                    .channel('public:app_data')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.historial_principal' }, payload => {
+                        if (!isSyncingFromCloud && payload.new && payload.new.payload) {
+                            isSyncingFromCloud = true;
+                            historialMeses = payload.new.payload.historialMeses || historialMeses;
+                            if (payload.new.payload.claveMesActual) {
+                                claveMesActual = payload.new.payload.claveMesActual;
+                                const partes = claveMesActual.split('-');
+                                anioActual = parseInt(partes[0]);
+                                mesActualIndex = parseInt(partes[1]);
+                            }
+                            cargarDatosMesActual();
+                            isSyncingFromCloud = false;
+                        }
+                    })
+                    .subscribe();
+
+            } catch (err) {
+                console.warn("Excepción conectando a Supabase:", err);
+                actualizarBadgeNube("offline", "Error Supabase");
                 inicializarEstadoLocal();
-                isSyncingFromCloud = false;
-            });
+            }
         }
 
-        async function guardarDatosNube() {
-            // Siempre guardamos en localStorage para respaldo instantáneo
+        async function guardarDatosSupabase() {
             try {
                 historialMeses[claveMesActual] = datosDeudores;
                 localStorage.setItem('deudores_v8_historial', JSON.stringify(historialMeses));
@@ -630,20 +682,32 @@
                 console.error("Error guardando en localStorage:", e);
             }
 
-            if (modoOfflineForzado || !currentUser || !db || isSyncingFromCloud) return;
+            if (!supabaseClient || isSyncingFromCloud) return;
             actualizarBadgeNube("sincronizando", "Guardando...");
+
             try {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'historial_deudores_v8');
-                await setDoc(docRef, {
+                isSyncingFromCloud = true;
+                const payloadData = {
                     historialMeses: historialMeses,
                     claveMesActual: claveMesActual,
                     actualizadoEn: new Date().toISOString()
-                });
-                actualizarBadgeNube("sincronizado", "Sincronizado");
+                };
+
+                const { error } = await supabaseClient
+                    .from('app_data')
+                    .upsert({ id: 'historial_principal', payload: payloadData });
+
+                if (error) {
+                    console.error("Error guardando en Supabase:", error);
+                    actualizarBadgeNube("offline", "Error Supabase");
+                } else {
+                    actualizarBadgeNube("sincronizado", "Sincronizado");
+                }
+                isSyncingFromCloud = false;
             } catch (err) {
-                console.warn("Fallo guardando en nube, operando en modo local seguro:", err);
-                modoOfflineForzado = true;
-                actualizarBadgeNube("offline", "Modo Local (Seguro)");
+                console.error("Excepción al guardar en Supabase:", err);
+                actualizarBadgeNube("offline", "Error Supabase");
+                isSyncingFromCloud = false;
             }
         }
 
@@ -759,7 +823,7 @@
 
         function guardarDatos() {
             historialMeses[claveMesActual] = datosDeudores;
-            guardarDatosNube();
+            guardarDatosSupabase();
             renderizar();
         }
 
@@ -1440,7 +1504,7 @@
         }
 
         window.onload = function() {
-            initFirebase();
+            initSupabase();
         };
     </script>
 </body>
