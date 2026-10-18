@@ -1,0 +1,31 @@
+name: Respaldo Automático de Supabase
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch: 
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del repositorio
+      uses: actions/checkout@v4
+
+    - name: Instalar Supabase CLI
+      run: |
+        npm install -g supabase
+
+    - name: Generar respaldo SQL
+      run: |
+        mkdir -p respaldos
+        supabase db dump --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --password "${{ secrets.SUPABASE_DB_PASSWORD }}" > respaldos/backup_$(date +%Y-%m-%d_%H%M%S).sql
+
+    - name: Subir respaldo al repositorio privado
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add respaldos/
+        git commit -m "Respaldo automático generado el $(date +%Y-%m-%d)" || exit 0
+        git push
