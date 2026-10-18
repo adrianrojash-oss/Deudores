@@ -18,6 +18,8 @@ jobs:
         npm install -g supabase
 
     - name: Generar respaldo SQL
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       run: |
         mkdir -p respaldos
         supabase db dump --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --password "${{ secrets.SUPABASE_DB_PASSWORD }}" > respaldos/backup_$(date +%Y-%m-%d_%H%M%S).sql
@@ -27,5 +29,5 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add respaldos/
-        git commit -m "Respaldo automático generado el $(date +%Y-%m-%d)" || exit 0
+        git commit -m "Respaldo automático generado el $(date +%Y-%m-%d)"
         git push
