@@ -158,12 +158,31 @@
         </div>
     </header>
 
-    <button id="botonFlotanteMes" onclick="gestionarToqueBotonMes()" style="touch-action: pan-y; user-select: none; -webkit-user-select: none;" class="fixed bottom-5 right-5 z-40 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2.5 rounded-full font-semibold text-xs transition shadow-2xl border border-indigo-400/30 flex items-center gap-2 group" title="Un toque: mes anterior · Doble toque: elegir mes · Desliza: cambiar de mes">
-        <i class="fa-solid fa-calendar-day group-hover:scale-110 transition-transform"></i>
-        <span>Mes Anterior</span>
-    </button>
+    <div id="menuFlotanteAcciones" class="hidden fixed bottom-[5.25rem] right-4 left-4 sm:left-auto sm:w-80 z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-slate-600 bg-slate-900/95 p-3 shadow-2xl backdrop-blur space-y-3" aria-hidden="true">
+        <div class="flex items-center justify-between gap-3">
+            <span class="text-sm font-bold text-white"><i class="fa-solid fa-bolt text-indigo-300 mr-2"></i>Acciones</span>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones()" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-700 hover:text-white" aria-label="Cerrar menú"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <button type="button" onclick="buscarDesdeMenuFlotante()" class="w-full rounded-xl border border-indigo-400/30 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
+            <i class="fa-solid fa-magnifying-glass"></i> Buscar y ver resultados
+        </button>
+        <p class="text-[11px] text-slate-400">La búsqueda y los botones de arriba siguen visibles. Estas son también sus opciones rápidas.</p>
+        <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); avanzarMesGlobal()" class="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-calendar-plus"></i> +1 Cuota / nuevo mes</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalCopiarMes()" class="rounded-xl bg-amber-600 hover:bg-amber-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Copiar mes</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); confirmarVaciarMesActual()" class="rounded-xl bg-rose-700 hover:bg-rose-600 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-trash-can"></i> Eliminar mes</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); exportarRespaldoJSON()" class="rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> Guardar JSON</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); document.getElementById('inputImportarJSON').click()" class="rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-upload"></i> Cargar JSON</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); exportarResumenWhatsApp()" class="rounded-xl bg-green-600 hover:bg-green-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-regular fa-copy"></i> Copiar todo</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); exportarPDF()" class="rounded-xl bg-rose-600 hover:bg-rose-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalDeudor()" class="rounded-xl bg-purple-600 hover:bg-purple-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-user-plus"></i> Nuevo deudor</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalReglas()" class="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-circle-info"></i> Reglas</button>
+            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalSeleccionarMes()" class="rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-calendar-days"></i> Elegir mes</button>
+        </div>
+    </div>
 
-    <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6">
+
+    <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6 pb-28">
 
         <section id="resumenRapido" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Total por cobrar</p><p id="resumenTotal" class="text-lg font-black text-purple-300 mt-1">$0</p></div>
@@ -173,7 +192,7 @@
         </section>
         <div id="vistaDeudores" class="space-y-5">
             <div class="flex flex-col sm:flex-row justify-between items-center gap-2.5 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
-                <div class="relative w-full sm:w-72">
+                <div id="herramientasBusqueda" class="relative w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
                     <input type="text" id="inputBuscar" oninput="toggleBotonBorrarBusqueda(); renderizar();" placeholder="Buscar deudor o concepto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
                     <button id="btnLimpiarBusqueda" onclick="limpiarBusqueda()" class="hidden absolute right-2.5 top-2 text-slate-500 hover:text-white text-xs p-0.5">
@@ -886,9 +905,14 @@
         }
 
         window.abrirModalSeleccionarMes = function() {
+            const modal = document.getElementById('modalSeleccionarMes');
+            // Si ya está abierto, volver a pulsar Elegir mes lo cierra.
+            if (modal && !modal.classList.contains('hidden')) {
+                cerrarModalSeleccionarMes();
+                return;
+            }
             anioSeleccionModal = anioActual;
             renderizarGridMesesModal();
-            const modal = document.getElementById('modalSeleccionarMes');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
@@ -943,18 +967,22 @@
         }
 
         window.irAMesActual = function() {
-            // El botón principal muestra siempre el mes anterior, que es el período que se cobra.
-            const fechaActual = new Date();
-            fechaActual.setDate(1);
-            fechaActual.setMonth(fechaActual.getMonth() - 1);
-            mesActualIndex = fechaActual.getMonth();
-            anioActual = fechaActual.getFullYear();
-            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
-            
-            if (!historialMeses[claveMesActual]) {
-                historialMeses[claveMesActual] = [];
+            // Ir al último mes que realmente tenga deudores registrados.
+            const mesesConDatos = Object.keys(historialMeses || {})
+                .filter(clave => /^\d{4}-\d{2}$/.test(clave) && Array.isArray(historialMeses[clave]) && historialMeses[clave].length > 0)
+                .sort();
+            if (mesesConDatos.length > 0) {
+                claveMesActual = mesesConDatos[mesesConDatos.length - 1];
+                const partes = claveMesActual.split('-');
+                anioActual = Number(partes[0]);
+                mesActualIndex = Number(partes[1]) - 1;
+            } else {
+                const fechaActual = new Date();
+                anioActual = fechaActual.getFullYear();
+                mesActualIndex = fechaActual.getMonth();
+                claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+                if (!historialMeses[claveMesActual]) historialMeses[claveMesActual] = [];
             }
-
             cargarDatosMesActual();
             guardarDatos();
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1623,52 +1651,80 @@
             }
         });
 
-        // El botón flotante permite volver al mes anterior, elegir mes con doble toque
-        // o cambiar de mes deslizando. Los gestos sobre tarjetas de deudores están desactivados.
-        let temporizadorToqueMes = null;
-        let inicioToqueMesX = 0;
-        let inicioToqueMesY = 0;
-        let gestoDeslizamientoMes = false;
-
-        window.gestionarToqueBotonMes = function() {
-            if (gestoDeslizamientoMes) { gestoDeslizamientoMes = false; return; }
-            if (temporizadorToqueMes) {
-                clearTimeout(temporizadorToqueMes);
-                temporizadorToqueMes = null;
-                abrirModalSeleccionarMes();
-                return;
+        // El botón flotante fue eliminado; las acciones quedan disponibles en la barra inferior.
+        window.abrirMenuFlotanteAcciones = function() {
+            const panel = document.getElementById('menuFlotanteAcciones');
+            if (!panel) return;
+            // El mismo botón abre el menú si está cerrado y lo oculta si ya está abierto.
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.setAttribute('aria-hidden', 'false');
+            } else {
+                panel.classList.add('hidden');
+                panel.setAttribute('aria-hidden', 'true');
             }
-            temporizadorToqueMes = setTimeout(() => {
-                temporizadorToqueMes = null;
-                irAMesActual();
-            }, 280);
         };
-
-        (function activarGestosBotonMes() {
-            const boton = document.getElementById('botonFlotanteMes');
-            if (!boton) return;
-            boton.addEventListener('touchstart', e => {
-                if (!e.touches || !e.touches[0]) return;
-                inicioToqueMesX = e.touches[0].clientX;
-                inicioToqueMesY = e.touches[0].clientY;
-                gestoDeslizamientoMes = false;
-            }, {passive:true});
-            boton.addEventListener('touchend', e => {
-                if (!e.changedTouches || !e.changedTouches[0]) return;
-                const dx = e.changedTouches[0].clientX - inicioToqueMesX;
-                const dy = e.changedTouches[0].clientY - inicioToqueMesY;
-                if (Math.abs(dx) < 35 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-                gestoDeslizamientoMes = true;
-                if (temporizadorToqueMes) { clearTimeout(temporizadorToqueMes); temporizadorToqueMes = null; }
-                // Deslizar a la izquierda avanza un mes; a la derecha retrocede un mes.
-                cambiarMes(dx < 0 ? 1 : -1);
-                setTimeout(() => { gestoDeslizamientoMes = false; }, 450);
-            }, {passive:true});
-        })();
+        window.cerrarMenuFlotanteAcciones = function() {
+            const panel = document.getElementById('menuFlotanteAcciones');
+            if (!panel) return;
+            panel.classList.add('hidden');
+            panel.setAttribute('aria-hidden', 'true');
+        };
+        window.buscarDesdeMenuFlotante = function() {
+            cerrarMenuFlotanteAcciones();
+            irABusquedaDesdeBarra();
+        };
+        window.irABusquedaDesdeBarra = function() {
+            cerrarMenuFlotanteAcciones();
+            const herramientas = document.getElementById('herramientasBusqueda');
+            const input = document.getElementById('inputBuscar');
+            if (herramientas) {
+                const y = herramientas.getBoundingClientRect().top + window.scrollY - 12;
+                window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+            }
+            if (input) {
+                setTimeout(() => { input.focus({ preventScroll: true }); }, 350);
+            }
+        };
+        window.cambiarMesAnteriorYSubir = function() {
+            cambiarMesRapido(-1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        document.addEventListener('click', e => {
+            const panel = document.getElementById('menuFlotanteAcciones');
+            const botonOpciones = document.querySelector('#barraInferiorNavegacion button[title="Abrir todas las opciones"]');
+            if (panel && !panel.contains(e.target) && botonOpciones && !botonOpciones.contains(e.target)) cerrarMenuFlotanteAcciones();
+        });
+        // Cierra el selector de mes al elegir otra función, pero permite que su propio botón lo abra/cierre.
+        document.addEventListener('click', e => {
+            const modalMes = document.getElementById('modalSeleccionarMes');
+            if (!modalMes || modalMes.classList.contains('hidden')) return;
+            const abreSelector = e.target.closest('[onclick*="abrirModalSeleccionarMes"]');
+            if (!modalMes.contains(e.target) && !abreSelector) cerrarModalSeleccionarMes();
+        });
 
         window.onload = function() {
             initSupabase();
         };
     </script>
+
+    <!-- Barra inferior estilo WhatsApp: accesos rápidos principales -->
+    <nav id="barraInferiorNavegacion" class="fixed bottom-0 inset-x-0 z-[60] border-t border-slate-700 bg-slate-950/95 backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.28)]" style="padding-bottom: max(env(safe-area-inset-bottom), 6px);" aria-label="Navegación rápida">
+        <div class="max-w-3xl mx-auto grid grid-cols-4 gap-1 px-2 pt-2">
+            <button type="button" onclick="irAMesActual()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Ir al último mes con datos y volver al principio">
+                <i class="fa-solid fa-house text-lg text-purple-300"></i><span class="text-[10px] font-semibold">Inicio</span>
+            </button>
+            <button type="button" onclick="irABusquedaDesdeBarra()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Buscar deudores">
+                <i class="fa-solid fa-magnifying-glass text-lg text-sky-300"></i><span class="text-[10px] font-semibold">Buscar</span>
+            </button>
+            <button type="button" onclick="abrirModalSeleccionarMes()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Elegir mes y año">
+                <i class="fa-solid fa-calendar-days text-lg text-emerald-300"></i><span class="text-[10px] font-semibold">Elegir mes</span>
+            </button>
+            <button type="button" onclick="abrirMenuFlotanteAcciones()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Abrir todas las opciones">
+                <i class="fa-solid fa-grip text-lg text-amber-300"></i><span class="text-[10px] font-semibold">Opciones</span>
+            </button>
+        </div>
+    </nav>
+
 </body>
 </html>
