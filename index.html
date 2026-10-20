@@ -67,6 +67,9 @@
         .animate-modal {
             animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
+
+        .deudor-card { touch-action: pan-y; will-change: transform; }
+        @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-28 sm:pb-20 selection:bg-purple-500 selection:text-white relative">
@@ -117,7 +120,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-end gap-1.5 sm:gap-2 pt-2 border-t border-slate-700/50">
+            <div id="accionesPrincipales" class="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-stretch lg:items-center gap-2 pt-3 border-t border-slate-700/50">
 
                 <button onclick="avanzarMesGlobal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Avanza de mes, resetea pagos y suma +1 a las cuotas activas">
                     <i class="fa-solid fa-calendar-plus"></i> +1 Cuota (Nuevo Mes)
@@ -155,13 +158,19 @@
         </div>
     </header>
 
-    <button onclick="irAMesActual()" class="fixed bottom-5 right-5 z-40 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2.5 rounded-full font-semibold text-xs transition shadow-2xl border border-indigo-400/30 flex items-center gap-2 group">
+    <button id="botonFlotanteMes" onclick="gestionarToqueBotonMes()" style="touch-action: pan-y; user-select: none; -webkit-user-select: none;" class="fixed bottom-5 right-5 z-40 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2.5 rounded-full font-semibold text-xs transition shadow-2xl border border-indigo-400/30 flex items-center gap-2 group" title="Un toque: mes anterior · Doble toque: elegir mes · Desliza: cambiar de mes">
         <i class="fa-solid fa-calendar-day group-hover:scale-110 transition-transform"></i>
-        <span>Mes Actual</span>
+        <span>Mes Anterior</span>
     </button>
 
     <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6">
 
+        <section id="resumenRapido" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Total por cobrar</p><p id="resumenTotal" class="text-lg font-black text-purple-300 mt-1">$0</p></div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Deudores</p><p id="resumenDeudores" class="text-lg font-black text-white mt-1">0</p></div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Pagados</p><p id="resumenPagados" class="text-lg font-black text-emerald-400 mt-1">0</p></div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Pendientes</p><p id="resumenPendientes" class="text-lg font-black text-amber-300 mt-1">0</p></div>
+        </section>
         <div id="vistaDeudores" class="space-y-5">
             <div class="flex flex-col sm:flex-row justify-between items-center gap-2.5 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
                 <div class="relative w-full sm:w-72">
@@ -499,6 +508,15 @@
             const emptyState = document.getElementById('emptyState');
 
             if (!contenedor) return;
+            const totalGeneral = datosDeudores.reduce((sum, d) => sum + (d.pagado ? 0 : (d.items || []).reduce((sub, i) => {
+                const cero = i.cuotaAct === 0;
+                const completada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+                return sub + (!cero && !completada ? (Number(i.monto) || 0) : 0);
+            }, 0)), 0);
+            document.getElementById('resumenTotal').textContent = formatearMoneda(totalGeneral);
+            document.getElementById('resumenDeudores').textContent = datosDeudores.length;
+            document.getElementById('resumenPagados').textContent = datosDeudores.filter(d => d.pagado).length;
+            document.getElementById('resumenPendientes').textContent = datosDeudores.filter(d => !d.pagado).length;
             contenedor.innerHTML = "";
 
             let deudoresMostrados = 0;
@@ -581,7 +599,7 @@
                     const nombreResaltado = resaltarTexto(d.nombre, busqueda);
 
                     contenedor.innerHTML += `
-                        <div class="bg-slate-800 border ${d.pagado ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-700/80'} rounded-2xl p-4 shadow-lg flex flex-col justify-between transition">
+                        <div data-deudor-id="${d.id}" class="deudor-card bg-slate-800 border ${d.pagado ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-700/80'} rounded-2xl p-4 shadow-lg flex flex-col justify-between transition">
                             <div>
                                 <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-700/80">
                                     <div class="flex items-center gap-2.5 min-w-0">
@@ -925,7 +943,10 @@
         }
 
         window.irAMesActual = function() {
+            // El botón principal muestra siempre el mes anterior, que es el período que se cobra.
             const fechaActual = new Date();
+            fechaActual.setDate(1);
+            fechaActual.setMonth(fechaActual.getMonth() - 1);
             mesActualIndex = fechaActual.getMonth();
             anioActual = fechaActual.getFullYear();
             claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
@@ -1593,6 +1614,57 @@
                 e.target.classList.remove('flex');
             }
         });
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay').forEach(m => {
+                    m.classList.add('hidden');
+                    m.classList.remove('flex');
+                });
+            }
+        });
+
+        // El botón flotante permite volver al mes anterior, elegir mes con doble toque
+        // o cambiar de mes deslizando. Los gestos sobre tarjetas de deudores están desactivados.
+        let temporizadorToqueMes = null;
+        let inicioToqueMesX = 0;
+        let inicioToqueMesY = 0;
+        let gestoDeslizamientoMes = false;
+
+        window.gestionarToqueBotonMes = function() {
+            if (gestoDeslizamientoMes) { gestoDeslizamientoMes = false; return; }
+            if (temporizadorToqueMes) {
+                clearTimeout(temporizadorToqueMes);
+                temporizadorToqueMes = null;
+                abrirModalSeleccionarMes();
+                return;
+            }
+            temporizadorToqueMes = setTimeout(() => {
+                temporizadorToqueMes = null;
+                irAMesActual();
+            }, 280);
+        };
+
+        (function activarGestosBotonMes() {
+            const boton = document.getElementById('botonFlotanteMes');
+            if (!boton) return;
+            boton.addEventListener('touchstart', e => {
+                if (!e.touches || !e.touches[0]) return;
+                inicioToqueMesX = e.touches[0].clientX;
+                inicioToqueMesY = e.touches[0].clientY;
+                gestoDeslizamientoMes = false;
+            }, {passive:true});
+            boton.addEventListener('touchend', e => {
+                if (!e.changedTouches || !e.changedTouches[0]) return;
+                const dx = e.changedTouches[0].clientX - inicioToqueMesX;
+                const dy = e.changedTouches[0].clientY - inicioToqueMesY;
+                if (Math.abs(dx) < 35 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+                gestoDeslizamientoMes = true;
+                if (temporizadorToqueMes) { clearTimeout(temporizadorToqueMes); temporizadorToqueMes = null; }
+                // Deslizar a la izquierda avanza un mes; a la derecha retrocede un mes.
+                cambiarMes(dx < 0 ? 1 : -1);
+                setTimeout(() => { gestoDeslizamientoMes = false; }, 450);
+            }, {passive:true});
+        })();
 
         window.onload = function() {
             initSupabase();
