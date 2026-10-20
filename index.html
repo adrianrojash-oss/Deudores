@@ -42,9 +42,34 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
+        mark.highlight {
+            background-color: #a855f7;
+            color: #ffffff;
+            padding: 0 2px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        .modal-overlay {
+            padding-bottom: env(safe-area-inset-bottom, 1rem);
+        }
+        
+        .modal-content {
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .animate-modal {
+            animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-20 selection:bg-purple-500 selection:text-white relative">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-28 sm:pb-20 selection:bg-purple-500 selection:text-white relative">
 
     <header class="bg-slate-800/95 border-b border-slate-700/80 z-30 shadow-lg">
         <div class="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3">
@@ -102,7 +127,7 @@
                     <i class="fa-solid fa-copy"></i> Copiar Mes
                 </button>
 
-                <button onclick="vaciarMesActual()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Eliminar todos los datos del mes actual">
+                <button onclick="confirmarVaciarMesActual()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Eliminar todos los datos del mes actual">
                     <i class="fa-solid fa-trash-can"></i> Eliminar Mes
                 </button>
 
@@ -115,8 +140,8 @@
                 </button>
                 <input type="file" id="inputImportarJSON" accept=".json" class="hidden" onchange="importarRespaldoJSON(event)">
 
-                <button onclick="exportarResumenWhatsApp()" class="bg-green-600 hover:bg-green-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Copiar formato limpio para WhatsApp">
-                    <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
+                <button onclick="exportarResumenWhatsApp()" class="bg-green-600 hover:bg-green-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Copiar resumen general de todos los deudores">
+                    <i class="fa-regular fa-copy"></i> Copiar Todo
                 </button>
 
                 <button onclick="exportarPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Exportar reporte del mes en formato PDF">
@@ -146,15 +171,20 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                     <span class="text-xs text-slate-400">Filtrar:</span>
-                    <select id="filtroEstado" onchange="renderizar()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-500">
+                    <select id="filtroEstado" onchange="actualizarEstadoFiltro(); renderizar();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-500">
                         <option value="todos">Todos los registros</option>
                         <option value="activos">Cuotas Activas del Mes</option>
                         <option value="cero">Cuotas 0/X (Futuras)</option>
                         <option value="completadas">Cuotas Completadas</option>
                         <option value="pagados">Deudores Pagados</option>
                     </select>
+
+                    <button id="btnLimpiarTodosFiltros" onclick="limpiarTodosFiltros()" class="hidden bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-sm" title="Restablecer todos los filtros y búsquedas">
+                        <i class="fa-solid fa-filter-circle-xmark text-purple-400"></i>
+                        <span>Borrar Filtros</span>
+                    </button>
                 </div>
             </div>
 
@@ -163,9 +193,12 @@
 
             <div id="emptyState" class="hidden text-center py-12 bg-slate-800/30 border border-dashed border-slate-700 rounded-2xl px-4">
                 <i class="fa-solid fa-folder-open text-3xl text-slate-600 mb-2"></i>
-                <h3 class="text-sm font-semibold text-slate-300">Este mes está vacío</h3>
-                <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">No hay registros creados para este período. Puedes agregar un nuevo deudor o usar el botón "+1 Cuota (Nuevo Mes)" o "Copiar Mes".</p>
+                <h3 class="text-sm font-semibold text-slate-300">Sin resultados o mes vacío</h3>
+                <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">No hay registros creados o que coincidan con la búsqueda actual.</p>
                 <div class="flex items-center justify-center gap-2 mt-4">
+                    <button onclick="limpiarTodosFiltros()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition">
+                        <i class="fa-solid fa-filter-circle-xmark mr-1"></i> Borrar Filtros
+                    </button>
                     <button onclick="abrirModalDeudor()" class="bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium transition">
                         <i class="fa-solid fa-plus mr-1"></i> Crear Deudor
                     </button>
@@ -181,9 +214,26 @@
         <span id="toastMensaje">Texto copiado al portapapeles</span>
     </div>
 
+    <!-- MODAL CONFIRMACION PERSONALIZADO -->
+    <div id="modalConfirmacion" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
+            <div class="flex items-center gap-3 mb-3 text-rose-400">
+                <div class="bg-rose-500/20 p-2.5 rounded-xl border border-rose-500/30">
+                    <i id="confirmIcon" class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+                <h3 class="text-sm font-bold text-white" id="confirmTitulo">Confirmar Acción</h3>
+            </div>
+            <p id="confirmMensaje" class="text-xs text-slate-300 leading-relaxed mb-5"></p>
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-700/60">
+                <button type="button" onclick="cerrarModalConfirmacion(false)" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition">Cancelar</button>
+                <button type="button" id="btnConfirmarAceptar" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition shadow-lg">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL CONFIGURACIÓN SUPABASE -->
-    <div id="modalConfigSupabase" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl">
+    <div id="modalConfigSupabase" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-database text-purple-400"></i> Conectar con Supabase
@@ -208,7 +258,7 @@
                     <span>¿Quieres eliminar las credenciales y usar solo modo local?</span>
                     <button type="button" onclick="desconectarSupabase()" class="text-rose-400 hover:text-rose-300 font-semibold underline text-[10px]">Desconectar</button>
                 </div>
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60">
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-700/60">
                     <button type="button" onclick="cerrarModalConfigSupabase()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
                     <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Guardar y Conectar</button>
                 </div>
@@ -216,9 +266,9 @@
         </div>
     </div>
 
-    <!-- OTROS MODALES (Deudor, Item, Seleccionar Mes, Copiar Mes, Reglas) -->
-    <div id="modalDeudor" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+    <!-- MODAL DEUDOR -->
+    <div id="modalDeudor" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100" id="modalDeudorTitulo">Agregar Nuevo Deudor</h3>
                 <button onclick="cerrarModalDeudor()" class="text-slate-400 hover:text-white text-sm">
@@ -232,16 +282,17 @@
                     <input type="text" id="nombreDeudor" required placeholder="EJ: PAPA, TIA PATY..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 uppercase">
                 </div>
 
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60">
-                    <button type="button" onclick="cerrarModalDeudor()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
-                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Guardar</button>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-700/60">
+                    <button type="button" onclick="cerrarModalDeudor()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition">Cancelar</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition shadow-lg">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="modalItem" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl">
+    <!-- MODAL ITEM -->
+    <div id="modalItem" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100" id="modalItemTitulo">Agregar Gasto / Cuenta</h3>
                 <button onclick="cerrarModalItem()" class="text-slate-400 hover:text-white text-sm">
@@ -282,16 +333,17 @@
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60">
-                    <button type="button" onclick="cerrarModalItem()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
-                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Guardar Gasto</button>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-700/60">
+                    <button type="button" onclick="cerrarModalItem()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition">Cancelar</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition shadow-lg">Guardar Gasto</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="modalSeleccionarMes" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+    <!-- MODAL SELECCIONAR MES -->
+    <div id="modalSeleccionarMes" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-calendar-check text-purple-400"></i> Seleccionar Mes
@@ -310,8 +362,9 @@
         </div>
     </div>
 
-    <div id="modalCopiarMes" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+    <!-- MODAL COPIAR MES -->
+    <div id="modalCopiarMes" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-copy text-amber-400"></i> Copiar Datos de Otro Mes
@@ -335,14 +388,15 @@
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-4 mt-2 border-t border-slate-700/60">
-                <button type="button" onclick="cerrarModalCopiarMes()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">Cancelar</button>
-                <button type="button" onclick="ejecutarCopiaMes()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition">Copiar Mes</button>
+                <button type="button" onclick="cerrarModalCopiarMes()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-medium transition">Cancelar</button>
+                <button type="button" onclick="ejecutarCopiaMes()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition shadow-lg">Copiar Mes</button>
             </div>
         </div>
     </div>
 
-    <div id="modalReglas" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl">
+    <!-- MODAL REGLAS -->
+    <div id="modalReglas" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-3 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-circle-info text-purple-400"></i> Reglas del Sistema de Cuotas
@@ -365,7 +419,7 @@
                     <i class="fa-solid fa-circle-check text-emerald-400 mt-0.5"></i>
                     <div>
                         <strong class="text-emerald-300 block mb-0.5">Cuotas Finales (ej. 12/12)</strong>
-                        <span>Las cuotas en su último ciclo <span class="font-mono font-bold text-teal-300">(ej. 12/12)</span> <strong>SÍ suman</strong> in su mes actual. Al avanzar al siguiente mes pasarán automáticamente a estado <span class="text-emerald-400 font-bold">Completadas</span>.</span>
+                        <span>Las cuotas en su último ciclo <span class="font-mono font-bold text-teal-300">(ej. 12/12)</span> <strong>SÍ suman</strong> en su mes actual. Al avanzar al siguiente mes pasarán automáticamente a estado <span class="text-emerald-400 font-bold">Completadas</span>.</span>
                     </div>
                 </div>
 
@@ -379,458 +433,64 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-slate-700/60 mt-3">
-                <button type="button" onclick="cerrarModalReglas()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition w-full sm:w-auto">Entendido</button>
+                <button type="button" onclick="cerrarModalReglas()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition w-full sm:w-auto shadow-lg">Entendido</button>
             </div>
         </div>
     </div>
 
     <script>
+        // Constantes y Estado de la Aplicación
+        const DEFAULT_SUPABASE_URL = "";
+        const DEFAULT_SUPABASE_KEY = "";
+        const MESES_NOMBRES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        const MESES_CORTOS = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+
+        const DATOS_INICIALES_EJEMPLO = [];
+
         let supabaseClient = null;
         let isSyncingFromCloud = false;
-
-        const DEFAULT_SUPABASE_URL = "https://svwppyiycxihbhmgbfdu.supabase.co";
-        const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2d3BweWl5Y3hpaGJobWdiZmR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODI5MzcsImV4cCI6MjEwNzA1ODkzN30.InK7ybizXAUa_fBikSdpfoQiUMbvoQ5ESrdJK1oYD5k";
-
-        const DATOS_INICIALES_EJEMPLO = [
-            {
-                id: "d_mama",
-                nombre: "MAMA",
-                pagado: false,
-                items: [
-                    { id: "i_m1", concepto: "Net", monto: 9990, montoPrestado: null, cuotaAct: null, cuotaTot: null },
-                    { id: "i_m2", concepto: "CMR", monto: 106570, montoPrestado: null, cuotaAct: null, cuotaTot: null },
-                    { id: "i_m3", concepto: "Entel", monto: 12990, montoPrestado: null, cuotaAct: null, cuotaTot: null }
-                ]
-            },
-            {
-                id: "d_papa",
-                nombre: "PAPA",
-                pagado: false,
-                items: [
-                    { id: "i_p1", concepto: "Plan Entel", monto: 12990, montoPrestado: null, cuotaAct: null, cuotaTot: null },
-                    { id: "i_p2", concepto: "YouTube P", monto: 5500, montoPrestado: null, cuotaAct: null, cuotaTot: null },
-                    { id: "i_p3", concepto: "Crédito Itaú", monto: 53000, montoPrestado: null, cuotaAct: 17, cuotaTot: 24 },
-                    { id: "i_p4", concepto: "1M Mami", monto: 100000, montoPrestado: 1000000, cuotaAct: 9, cuotaTot: 10 },
-                    { id: "i_p5", concepto: "1M Itaú", monto: 52000, montoPrestado: 1000000, cuotaAct: 8, cuotaTot: 24 },
-                    { id: "i_p6", concepto: "Wallpanel", monto: 26000, montoPrestado: 136000, cuotaAct: 2, cuotaTot: 6 },
-                    { id: "i_p7", concepto: "luz Santiago", monto: 206386, montoPrestado: null, cuotaAct: 1, cuotaTot: 1 },
-                    { id: "i_p8", concepto: "TAG", monto: 11761, montoPrestado: null, cuotaAct: null, cuotaTot: null }
-                ]
-            },
-            {
-                id: "d_suegrita",
-                nombre: "SUEGRITA",
-                pagado: false,
-                items: [
-                    { id: "i_s1", concepto: "Avance 1M", monto: 103000, montoPrestado: 1000000, cuotaAct: 12, cuotaTot: 12 },
-                    { id: "i_s2", concepto: "Avance 1M Scotia", monto: 100000, montoPrestado: 1000000, cuotaAct: 0, cuotaTot: 12 },
-                    { id: "i_s3", concepto: "Avance 1M Scotia", monto: 100000, montoPrestado: 1000000, cuotaAct: 0, cuotaTot: 12 }
-                ]
-            },
-            {
-                id: "d_tiasole",
-                nombre: "TIA SOLE",
-                pagado: false,
-                items: [
-                    { id: "i_ts1", concepto: "Avance scotia", monto: 98000, montoPrestado: 500000, cuotaAct: 5, cuotaTot: 6 }
-                ]
-            },
-            {
-                id: "d_javi",
-                nombre: "JAVI",
-                pagado: false,
-                items: [
-                    { id: "i_j1", concepto: "600 CMR", monto: 60100, montoPrestado: null, cuotaAct: 9, cuotaTot: 12 },
-                    { id: "i_j2", concepto: "Itaú", monto: 70000, montoPrestado: null, cuotaAct: 6, cuotaTot: 12 },
-                    { id: "i_j3", concepto: "Ficcus", monto: 11000, montoPrestado: 54000, cuotaAct: 3, cuotaTot: 6 },
-                    { id: "i_j4", concepto: "Secadora", monto: 16300, montoPrestado: 159990, cuotaAct: 3, cuotaTot: 12 }
-                ]
-            },
-            {
-                id: "d_pancho",
-                nombre: "PANCHO",
-                pagado: false,
-                items: [
-                    { id: "i_pan1", concepto: "Compu", monto: 132000, montoPrestado: 680000, cuotaAct: 6, cuotaTot: 6 }
-                ]
-            },
-            {
-                id: "d_tiapaty",
-                nombre: "TIA PATY",
-                pagado: false,
-                items: [
-                    { id: "i_tp1", concepto: "CMR", monto: 522000, montoPrestado: 1482000, cuotaAct: 3, cuotaTot: 3 },
-                    { id: "i_tp2", concepto: "Cerámica", monto: 111000, montoPrestado: 331766, cuotaAct: 2, cuotaTot: 3 },
-                    { id: "i_tp3", concepto: "Gasto común", monto: 42000, montoPrestado: 124358, cuotaAct: 0, cuotaTot: 3 }
-                ]
-            },
-            {
-                id: "d_gloria",
-                nombre: "GLORIA",
-                pagado: false,
-                items: [
-                    { id: "i_g1", concepto: "1.2M Scotia", monto: 121000, montoPrestado: 1200000, cuotaAct: 1, cuotaTot: 12 },
-                    { id: "i_g2", concepto: "Colchón", monto: 33000, montoPrestado: 330000, cuotaAct: 2, cuotaTot: 10 }
-                ]
-            },
-            {
-                id: "d_matias",
-                nombre: "MATÍAS",
-                pagado: false,
-                items: [
-                    { id: "i_mat1", concepto: "Google one y YouTube", monto: 5500, montoPrestado: null, cuotaAct: null, cuotaTot: null }
-                ]
-            }
-        ];
-
         let historialMeses = {};
+        let datosDeudores = [];
         let mesActualIndex = 8;
         let anioActual = 2026;
         let claveMesActual = "2026-09";
-        let datosDeudores = [];
         let anioSeleccionModal = 2026;
+        let confirmCallback = null;
+        let toastTimeout = null;
 
-        const MESES_NOMBRES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
-        const MESES_CORTOS = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
-
-        function obtenerClaveMes(anio, mesIdx) {
-            return `${anio}-${String(mesIdx).padStart(2, '0')}`;
+        function obtenerClaveMes(anio, mesIndex) {
+            const m = String(mesIndex + 1).padStart(2, '0');
+            return `${anio}-${m}`;
         }
 
-        function initSupabase() {
-            let url = localStorage.getItem('supabase_url');
-            let key = localStorage.getItem('supabase_key');
+        // Modal de confirmación
+        function mostrarModalConfirmacion(titulo, mensaje, iconoClass, callback) {
+            document.getElementById('confirmTitulo').innerText = titulo;
+            document.getElementById('confirmMensaje').innerText = mensaje;
+            const icon = document.getElementById('confirmIcon');
+            if (icon) icon.className = "fa-solid " + (iconoClass || "fa-triangle-exclamation") + " text-lg";
 
-            if (!url || !key) {
-                url = DEFAULT_SUPABASE_URL;
-                key = DEFAULT_SUPABASE_KEY;
-                localStorage.setItem('supabase_url', url);
-                localStorage.setItem('supabase_key', key);
-            }
-
-            if (url && key) {
-                try {
-                    supabaseClient = window.supabase.createClient(url, key);
-                    actualizarBadgeNube("sincronizando", "Conectando...");
-                    sincronizarDesdeSupabase();
-                } catch(e) {
-                    console.error("Error iniciando Supabase:", e);
-                    actualizarBadgeNube("offline", "Configurar Supabase");
-                    inicializarEstadoLocal();
-                }
-            } else {
-                actualizarBadgeNube("offline", "Configurar Supabase");
-                inicializarEstadoLocal();
-            }
-        }
-
-        window.abrirModalConfigSupabase = function() {
-            document.getElementById('inputSupabaseUrl').value = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
-            document.getElementById('inputSupabaseKey').value = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
-            const modal = document.getElementById('modalConfigSupabase');
+            confirmCallback = callback;
+            const modal = document.getElementById('modalConfirmacion');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
 
-        window.cerrarModalConfigSupabase = function() {
-            const modal = document.getElementById('modalConfigSupabase');
+        function cerrarModalConfirmacion(aceptado) {
+            const modal = document.getElementById('modalConfirmacion');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-        }
-
-        window.guardarCredencialesSupabase = function(e) {
-            e.preventDefault();
-            const url = document.getElementById('inputSupabaseUrl').value.trim();
-            const key = document.getElementById('inputSupabaseKey').value.trim();
-
-            localStorage.setItem('supabase_url', url);
-            localStorage.setItem('supabase_key', key);
-
-            cerrarModalConfigSupabase();
-            initSupabase();
-            mostrarToast("Credenciales guardadas y sincronizadas");
-        }
-
-        window.desconectarSupabase = function() {
-            if (confirm("¿Seguro que deseas desconectar Supabase? La aplicación funcionará solo en tu navegador.")) {
-                localStorage.removeItem('supabase_url');
-                localStorage.removeItem('supabase_key');
-                supabaseClient = null;
-                cerrarModalConfigSupabase();
-                actualizarBadgeNube("offline", "Configurar Supabase");
-                mostrarToast("Desconectado de Supabase");
+            if (aceptado && typeof confirmCallback === 'function') {
+                confirmCallback();
             }
+            confirmCallback = null;
         }
 
-        function actualizarBadgeNube(estado, texto) {
-            const dot = document.getElementById('cloudDot');
-            const txt = document.getElementById('cloudText');
-            if (!dot || !txt) return;
+        document.getElementById('btnConfirmarAceptar').onclick = function() {
+            cerrarModalConfirmacion(true);
+        };
 
-            txt.innerText = texto;
-            if (estado === 'sincronizado') {
-                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
-            } else if (estado === 'sincronizando') {
-                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
-            } else if (estado === 'offline') {
-                dot.className = "w-2 h-2 rounded-full bg-blue-400";
-            } else {
-                dot.className = "w-2 h-2 rounded-full bg-rose-500";
-            }
-        }
-
-        function inicializarEstadoLocal() {
-            const historialGuardado = localStorage.getItem('deudores_v8_historial');
-            const claveGuardada = localStorage.getItem('deudores_v8_clave_actual');
-
-            if (historialGuardado) {
-                try {
-                    historialMeses = JSON.parse(historialGuardado);
-                } catch(e) {
-                    historialMeses = {};
-                }
-            }
-
-            if (!historialMeses["2026-09"]) {
-                historialMeses["2026-09"] = JSON.parse(JSON.stringify(DATOS_INICIALES_EJEMPLO));
-            }
-
-            if (claveGuardada) {
-                claveMesActual = claveGuardada;
-                const partes = claveMesActual.split('-');
-                anioActual = parseInt(partes[0]);
-                mesActualIndex = parseInt(partes[1]);
-            } else {
-                mesActualIndex = 8;
-                anioActual = 2026;
-                claveMesActual = "2026-09";
-            }
-
-            cargarDatosMesActual();
-        }
-
-        async function sincronizarDesdeSupabase() {
-            if (!supabaseClient) {
-                inicializarEstadoLocal();
-                return;
-            }
-
-            try {
-                const { data, error } = await supabaseClient
-                    .from('app_data')
-                    .select('*')
-                    .eq('id', 'historial_principal')
-                    .single();
-
-                if (error && error.code !== 'PGRST116') {
-                    console.warn("Error leyendo de Supabase:", error);
-                    actualizarBadgeNube("offline", "Error Supabase");
-                    inicializarEstadoLocal();
-                    return;
-                }
-
-                if (data && data.payload) {
-                    isSyncingFromCloud = true;
-                    historialMeses = data.payload.historialMeses || {};
-                    if (data.payload.claveMesActual) {
-                        claveMesActual = data.payload.claveMesActual;
-                        const partes = claveMesActual.split('-');
-                        anioActual = parseInt(partes[0]);
-                        mesActualIndex = parseInt(partes[1]);
-                    }
-                    isSyncingFromCloud = false;
-                } else {
-                    historialMeses["2026-09"] = JSON.parse(JSON.stringify(DATOS_INICIALES_EJEMPLO));
-                    await guardarDatosSupabase();
-                }
-
-                cargarDatosMesActual();
-                actualizarBadgeNube("sincronizado", "Sincronizado");
-
-                // Configurar Realtime
-                supabaseClient
-                    .channel('public:app_data')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.historial_principal' }, payload => {
-                        if (!isSyncingFromCloud && payload.new && payload.new.payload) {
-                            isSyncingFromCloud = true;
-                            historialMeses = payload.new.payload.historialMeses || historialMeses;
-                            if (payload.new.payload.claveMesActual) {
-                                claveMesActual = payload.new.payload.claveMesActual;
-                                const partes = claveMesActual.split('-');
-                                anioActual = parseInt(partes[0]);
-                                mesActualIndex = parseInt(partes[1]);
-                            }
-                            cargarDatosMesActual();
-                            isSyncingFromCloud = false;
-                        }
-                    })
-                    .subscribe();
-
-            } catch (err) {
-                console.warn("Excepción conectando a Supabase:", err);
-                actualizarBadgeNube("offline", "Error Supabase");
-                inicializarEstadoLocal();
-            }
-        }
-
-        async function guardarDatosSupabase() {
-            try {
-                historialMeses[claveMesActual] = datosDeudores;
-                localStorage.setItem('deudores_v8_historial', JSON.stringify(historialMeses));
-                localStorage.setItem('deudores_v8_clave_actual', claveMesActual);
-            } catch(e) {
-                console.error("Error guardando en localStorage:", e);
-            }
-
-            if (!supabaseClient || isSyncingFromCloud) return;
-            actualizarBadgeNube("sincronizando", "Guardando...");
-
-            try {
-                isSyncingFromCloud = true;
-                const payloadData = {
-                    historialMeses: historialMeses,
-                    claveMesActual: claveMesActual,
-                    actualizadoEn: new Date().toISOString()
-                };
-
-                const { error } = await supabaseClient
-                    .from('app_data')
-                    .upsert({ id: 'historial_principal', payload: payloadData });
-
-                if (error) {
-                    console.error("Error guardando en Supabase:", error);
-                    actualizarBadgeNube("offline", "Error Supabase");
-                } else {
-                    actualizarBadgeNube("sincronizado", "Sincronizado");
-                }
-                isSyncingFromCloud = false;
-            } catch (err) {
-                console.error("Excepción al guardar en Supabase:", err);
-                actualizarBadgeNube("offline", "Error Supabase");
-                isSyncingFromCloud = false;
-            }
-        }
-
-        function cargarDatosMesActual() {
-            if (!historialMeses[claveMesActual]) {
-                historialMeses[claveMesActual] = [];
-            }
-            datosDeudores = historialMeses[claveMesActual];
-            
-            document.getElementById('mesBadge').innerText = MESES_NOMBRES[mesActualIndex];
-            document.getElementById('labelMesAnioBoton').innerText = `${MESES_CORTOS[mesActualIndex]} ${anioActual}`;
-
-            renderizar();
-        }
-
-        window.cambiarMesRapido = function(delta) {
-            mesActualIndex += delta;
-            if (mesActualIndex > 11) {
-                mesActualIndex = 0;
-                anioActual += 1;
-            } else if (mesActualIndex < 0) {
-                mesActualIndex = 11;
-                anioActual -= 1;
-            }
-            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
-            cargarDatosMesActual();
-            guardarDatos();
-        }
-
-        window.abrirModalSeleccionarMes = function() {
-            anioSeleccionModal = anioActual;
-            renderizarGridMesesModal();
-            const modal = document.getElementById('modalSeleccionarMes');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        window.cerrarModalSeleccionarMes = function() {
-            const modal = document.getElementById('modalSeleccionarMes');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        window.abrirModalReglas = function() {
-            const modal = document.getElementById('modalReglas');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        window.cerrarModalReglas = function() {
-            const modal = document.getElementById('modalReglas');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        window.cambiarAnioSelector = function(delta) {
-            anioSeleccionModal += delta;
-            renderizarGridMesesModal();
-        }
-
-        function renderizarGridMesesModal() {
-            document.getElementById('anioSelectorDisplay').innerText = anioSeleccionModal;
-            const grid = document.getElementById('gridMesesSelector');
-            grid.innerHTML = "";
-
-            MESES_CORTOS.forEach((mesCorto, idx) => {
-                const claveTemp = obtenerClaveMes(anioSeleccionModal, idx);
-                const esMesSeleccionado = (idx === mesActualIndex && anioSeleccionModal === anioActual);
-                const tieneDatos = historialMeses[claveTemp] && historialMeses[claveTemp].length > 0;
-
-                let btnClass = "bg-slate-900 border-slate-700 text-slate-300 hover:bg-purple-600/30 hover:border-purple-500/50 hover:text-white";
-                if (esMesSeleccionado) {
-                    btnClass = "bg-purple-600 text-white font-bold border-purple-400 ring-2 ring-purple-400/50";
-                }
-
-                grid.innerHTML += `
-                    <button onclick="seleccionarMesDesdeModal(${idx})" class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 ${btnClass}">
-                        <span class="text-xs font-mono font-bold">${mesCorto}</span>
-                        ${tieneDatos ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : '<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>'}
-                    </button>
-                `;
-            });
-        }
-
-        window.seleccionarMesDesdeModal = function(mesIdx) {
-            mesActualIndex = mesIdx;
-            anioActual = anioSeleccionModal;
-            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
-            
-            if (!historialMeses[claveMesActual]) {
-                historialMeses[claveMesActual] = [];
-            }
-
-            cerrarModalSeleccionarMes();
-            cargarDatosMesActual();
-            guardarDatos();
-        }
-
-        window.irAMesActual = function() {
-            const fechaActual = new Date();
-            mesActualIndex = fechaActual.getMonth();
-            anioActual = fechaActual.getFullYear();
-            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
-            
-            if (!historialMeses[claveMesActual]) {
-                historialMeses[claveMesActual] = [];
-            }
-
-            cargarDatosMesActual();
-            guardarDatos();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function guardarDatos() {
-            historialMeses[claveMesActual] = datosDeudores;
-            guardarDatosSupabase();
-            renderizar();
-        }
-
-        function formatearMoneda(monto) {
-            return '$' + Math.round(monto).toLocaleString('es-CL');
-        }
-
+        // Renderizado principal
         function renderizar() {
             const busqueda = document.getElementById('inputBuscar').value.toLowerCase().trim();
             const filtroEstado = document.getElementById('filtroEstado').value;
@@ -871,8 +531,9 @@
                     }
                 });
 
-                const coincideTexto = d.nombre.toLowerCase().includes(busqueda) || 
-                                     d.items.some(it => it.concepto.toLowerCase().includes(busqueda));
+                const coincideNombre = d.nombre.toLowerCase().includes(busqueda);
+                const coincideConcepto = d.items.some(it => it.concepto.toLowerCase().includes(busqueda));
+                const coincideTexto = coincideNombre || coincideConcepto;
                 
                 const coincideEstadoDeudor = (filtroEstado !== 'pagados') || (filtroEstado === 'pagados' && d.pagado);
 
@@ -897,11 +558,12 @@
                         }
 
                         const prestadoTexto = item.montoPrestado ? `<span class="text-[10px] text-slate-500 font-mono ml-1">(${formatearMoneda(item.montoPrestado)})</span>` : '';
+                        const conceptoResaltado = resaltarTexto(item.concepto, busqueda);
 
                         return `
                             <div class="flex items-center justify-between py-2 border-b border-slate-700/40 text-xs">
                                 <div class="flex items-center gap-1.5 min-w-0 pr-2">
-                                    <span class="text-slate-200 font-medium truncate">${item.concepto}</span>
+                                    <span class="text-slate-200 font-medium truncate">${conceptoResaltado}</span>
                                     ${prestadoTexto}
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
@@ -916,23 +578,25 @@
                         `;
                     }).join('');
 
+                    const nombreResaltado = resaltarTexto(d.nombre, busqueda);
+
                     contenedor.innerHTML += `
                         <div class="bg-slate-800 border ${d.pagado ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-700/80'} rounded-2xl p-4 shadow-lg flex flex-col justify-between transition">
                             <div>
                                 <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-700/80">
-                                    <div class="flex items-center gap-2.5">
-                                        <button onclick="togglePagadoDeudor('${d.id}')" class="w-6 h-6 rounded-lg flex items-center justify-center border transition ${d.pagado ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'bg-slate-900 border-slate-600 text-transparent hover:border-purple-400'}" title="Marcar deudor como totalmente pagado este mes">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <button onclick="togglePagadoDeudor('${d.id}')" class="w-6 h-6 rounded-lg flex items-center justify-center border transition shrink-0 ${d.pagado ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'bg-slate-900 border-slate-600 text-transparent hover:border-purple-400'}" title="Marcar deudor como totalmente pagado este mes">
                                             <i class="fa-solid fa-check text-xs font-bold"></i>
                                         </button>
-                                        <h3 class="font-bold text-sm sm:text-base ${d.pagado ? 'text-emerald-400 line-through' : 'text-white'} uppercase tracking-wide">${d.nombre}</h3>
+                                        <h3 class="font-bold text-sm sm:text-base ${d.pagado ? 'text-emerald-400 line-through' : 'text-white'} uppercase tracking-wide truncate">${nombreResaltado}</h3>
                                     </div>
                                     
-                                    <div class="flex items-center gap-1.5">
+                                    <div class="flex items-center gap-1.5 shrink-0">
                                         <button onclick="abrirModalItem('${d.id}')" class="bg-purple-600 hover:bg-purple-500 text-white w-7 h-7 rounded-lg transition font-bold flex items-center justify-center shadow-sm" title="Agregar gasto a ${d.nombre}">
                                             <i class="fa-solid fa-plus text-xs"></i>
                                         </button>
-                                        <button onclick="exportarWhatsAppDeudor('${d.id}')" class="bg-green-600/20 hover:bg-green-600/40 border border-green-500/40 text-green-400 text-[10px] px-2 py-1 rounded-lg transition font-medium flex items-center gap-1" title="Copiar resumen de este deudor para WhatsApp">
-                                            <i class="fa-brands fa-whatsapp text-xs"></i> WhatsApp
+                                        <button onclick="exportarWhatsAppDeudor('${d.id}')" class="bg-green-600/20 hover:bg-green-600/40 border border-green-500/40 text-green-400 text-[10px] px-2 py-1 rounded-lg transition font-medium flex items-center gap-1" title="Copiar resumen de este deudor">
+                                            <i class="fa-regular fa-copy text-xs"></i> Copiar
                                         </button>
                                         <button onclick="abrirModalDeudor('${d.id}')" class="text-slate-500 hover:text-white p-1 text-xs" title="Editar Nombre"><i class="fa-solid fa-pen"></i></button>
                                         <button onclick="eliminarDeudor('${d.id}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Eliminar Deudor"><i class="fa-solid fa-trash"></i></button>
@@ -960,32 +624,7 @@
             }
         }
 
-        window.toggleBotonBorrarBusqueda = function() {
-            const input = document.getElementById('inputBuscar');
-            const btn = document.getElementById('btnLimpiarBusqueda');
-            if (input.value.trim() !== '') {
-                btn.classList.remove('hidden');
-            } else {
-                btn.classList.add('hidden');
-            }
-        }
-
-        window.limpiarBusqueda = function() {
-            const input = document.getElementById('inputBuscar');
-            input.value = '';
-            toggleBotonBorrarBusqueda();
-            renderizar();
-            input.focus();
-        }
-
-        window.togglePagadoDeudor = function(deudorId) {
-            const deudor = datosDeudores.find(d => d.id === deudorId);
-            if (deudor) {
-                deudor.pagado = !deudor.pagado;
-                guardarDatos();
-            }
-        }
-
+        // Operaciones de Deudor
         window.abrirModalDeudor = function(id = null) {
             const modal = document.getElementById('modalDeudor');
             document.getElementById('editDeudorId').value = id || "";
@@ -1002,6 +641,7 @@
             
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            setTimeout(() => document.getElementById('nombreDeudor').focus(), 100);
         }
 
         window.cerrarModalDeudor = function() {
@@ -1042,12 +682,29 @@
         }
 
         window.eliminarDeudor = function(id) {
-            if (confirm("¿Seguro que deseas eliminar este deudor y todas sus cuentas?")) {
-                datosDeudores = datosDeudores.filter(d => d.id !== id);
+            const deudor = datosDeudores.find(d => d.id === id);
+            const nombre = deudor ? deudor.nombre : "este deudor";
+            mostrarModalConfirmacion(
+                "Eliminar Deudor",
+                `¿Estás seguro de que deseas eliminar a "${nombre}" y todas sus cuentas asociadas?`,
+                "fa-trash-can",
+                () => {
+                    datosDeudores = datosDeudores.filter(d => d.id !== id);
+                    guardarDatos();
+                    mostrarToast(`Deudor ${nombre} eliminado.`);
+                }
+            );
+        }
+
+        window.togglePagadoDeudor = function(deudorId) {
+            const deudor = datosDeudores.find(d => d.id === deudorId);
+            if (deudor) {
+                deudor.pagado = !deudor.pagado;
                 guardarDatos();
             }
         }
 
+        // Operaciones de Items / Cuentas
         window.abrirModalItem = function(deudorId, itemId = null) {
             const modal = document.getElementById('modalItem');
             document.getElementById('itemDeudorId').value = deudorId;
@@ -1056,7 +713,7 @@
 
             if (itemId) {
                 const deudor = datosDeudores.find(d => d.id === deudorId);
-                const item = deudor.items.find(i => i.id === itemId);
+                const item = deudor ? deudor.items.find(i => i.id === itemId) : null;
                 if (item) {
                     document.getElementById('conceptoItem').value = item.concepto;
                     document.getElementById('montoItem').value = item.monto;
@@ -1124,19 +781,162 @@
 
         window.eliminarItem = function(deudorId, itemId) {
             const deudor = datosDeudores.find(d => d.id === deudorId);
-            if (deudor) {
-                deudor.items = deudor.items.filter(i => i.id !== itemId);
-                guardarDatos();
-            }
+            if (!deudor) return;
+            const item = deudor.items.find(i => i.id === itemId);
+            const concepto = item ? item.concepto : "este gasto";
+
+            mostrarModalConfirmacion(
+                "Eliminar Gasto",
+                `¿Deseas eliminar "${concepto}" de ${deudor.nombre}?`,
+                "fa-trash-can",
+                () => {
+                    deudor.items = deudor.items.filter(i => i.id !== itemId);
+                    guardarDatos();
+                    mostrarToast("Gasto eliminado.");
+                }
+            );
         }
 
-        window.vaciarMesActual = function() {
+        // Gestión de Meses y Navegación
+        window.confirmarVaciarMesActual = function() {
             const mesNombre = MESES_NOMBRES[mesActualIndex];
-            if (confirm(`¿Estás seguro de que deseas ELIMINAR TODOS los datos de ${mesNombre} ${anioActual}?\n\nEsta acción dejará el mes totalmente vacío.`)) {
-                datosDeudores = [];
-                guardarDatos();
-                mostrarToast(`Datos de ${mesNombre} ${anioActual} eliminados.`);
+            mostrarModalConfirmacion(
+                `Eliminar Mes ${mesNombre} ${anioActual}`,
+                `¿Estás seguro de que deseas ELIMINAR TODOS los datos de ${mesNombre} ${anioActual}? Esta acción dejará el mes totalmente vacío.`,
+                "fa-trash-can",
+                () => {
+                    datosDeudores = [];
+                    guardarDatos();
+                    mostrarToast(`Datos de ${mesNombre} ${anioActual} eliminados.`);
+                }
+            );
+        }
+
+        window.avanzarMesGlobal = function() {
+            mostrarModalConfirmacion(
+                "Avanzar al Nuevo Mes",
+                "¿Deseas avanzar al NUEVO MES?\n\n• Se creará el siguiente mes con la copia de los deudores.\n• Se reiniciarán las marcas de 'PAGADO'.\n• Se sumará +1 cuota a las cuentas activas.",
+                "fa-calendar-plus",
+                () => {
+                    historialMeses[claveMesActual] = JSON.parse(JSON.stringify(datosDeudores));
+
+                    mesActualIndex += 1;
+                    if (mesActualIndex > 11) {
+                        mesActualIndex = 0;
+                        anioActual += 1;
+                    }
+
+                    const nuevaClave = obtenerClaveMes(anioActual, mesActualIndex);
+                    
+                    if (!historialMeses[nuevaClave] || historialMeses[nuevaClave].length === 0) {
+                        const nuevosDatos = JSON.parse(JSON.stringify(datosDeudores));
+                        nuevosDatos.forEach(deudor => {
+                            deudor.pagado = false;
+                            deudor.items.forEach(item => {
+                                if (item.cuotaTot && item.cuotaTot > 0) {
+                                    if (item.cuotaAct === null || item.cuotaAct === undefined) {
+                                        item.cuotaAct = 1;
+                                    } else {
+                                        item.cuotaAct += 1;
+                                    }
+                                }
+                            });
+                        });
+                        historialMeses[nuevaClave] = nuevosDatos;
+                    }
+
+                    claveMesActual = nuevaClave;
+                    cargarDatosMesActual();
+                    guardarDatos();
+                    mostrarToast(`Avanzado a ${MESES_NOMBRES[mesActualIndex]} ${anioActual}`);
+                }
+            );
+        }
+
+        window.cambiarMesRapido = function(delta) {
+            mesActualIndex += delta;
+            if (mesActualIndex > 11) {
+                mesActualIndex = 0;
+                anioActual += 1;
+            } else if (mesActualIndex < 0) {
+                mesActualIndex = 11;
+                anioActual -= 1;
             }
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            cargarDatosMesActual();
+            guardarDatos();
+        }
+
+        window.abrirModalSeleccionarMes = function() {
+            anioSeleccionModal = anioActual;
+            renderizarGridMesesModal();
+            const modal = document.getElementById('modalSeleccionarMes');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.cerrarModalSeleccionarMes = function() {
+            const modal = document.getElementById('modalSeleccionarMes');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        window.cambiarAnioSelector = function(delta) {
+            anioSeleccionModal += delta;
+            renderizarGridMesesModal();
+        }
+
+        function renderizarGridMesesModal() {
+            document.getElementById('anioSelectorDisplay').innerText = anioSeleccionModal;
+            const grid = document.getElementById('gridMesesSelector');
+            grid.innerHTML = "";
+
+            MESES_CORTOS.forEach((mesCorto, idx) => {
+                const claveTemp = obtenerClaveMes(anioSeleccionModal, idx);
+                const esMesSeleccionado = (idx === mesActualIndex && anioSeleccionModal === anioActual);
+                const tieneDatos = historialMeses[claveTemp] && historialMeses[claveTemp].length > 0;
+
+                let btnClass = "bg-slate-900 border-slate-700 text-slate-300 hover:bg-purple-600/30 hover:border-purple-500/50 hover:text-white";
+                if (esMesSeleccionado) {
+                    btnClass = "bg-purple-600 text-white font-bold border-purple-400 ring-2 ring-purple-400/50";
+                }
+
+                grid.innerHTML += `
+                    <button onclick="seleccionarMesDesdeModal(${idx})" class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 ${btnClass}">
+                        <span class="text-xs font-mono font-bold">${mesCorto}</span>
+                        ${tieneDatos ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : '<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>'}
+                    </button>
+                `;
+            });
+        }
+
+        window.seleccionarMesDesdeModal = function(mesIdx) {
+            mesActualIndex = mesIdx;
+            anioActual = anioSeleccionModal;
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
+            }
+
+            cerrarModalSeleccionarMes();
+            cargarDatosMesActual();
+            guardarDatos();
+        }
+
+        window.irAMesActual = function() {
+            const fechaActual = new Date();
+            mesActualIndex = fechaActual.getMonth();
+            anioActual = fechaActual.getFullYear();
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
+            }
+
+            cargarDatosMesActual();
+            guardarDatos();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         window.abrirModalCopiarMes = function() {
@@ -1156,7 +956,7 @@
             clavesExistentes.forEach(clave => {
                 const partes = clave.split('-');
                 const a = partes[0];
-                const mIdx = parseInt(partes[1]);
+                const mIdx = parseInt(partes[1]) - 1;
                 const option = document.createElement('option');
                 option.value = clave;
                 option.innerText = `${MESES_NOMBRES[mIdx]} ${a} (${historialMeses[clave].length} deudores)`;
@@ -1201,41 +1001,307 @@
             mostrarToast(`Datos copiados exitosamente a ${mesNombre} ${anioActual}`);
         }
 
-        window.avanzarMesGlobal = function() {
-            if (!confirm("¿Deseas avanzar al NUEVO MES?\n\n- Se creará el siguiente mes con la copia de los deudores.\n- Se reiniciarán las marcas de 'PAGADO'.\n- Se sumará +1 cuota a las cuentas activas.")) {
+        window.abrirModalReglas = function() {
+            const modal = document.getElementById('modalReglas');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.cerrarModalReglas = function() {
+            const modal = document.getElementById('modalReglas');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Supabase e Integración de Datos
+        function initSupabase() {
+            let url = localStorage.getItem('supabase_url');
+            let key = localStorage.getItem('supabase_key');
+
+            if (!url || !key) {
+                url = DEFAULT_SUPABASE_URL;
+                key = DEFAULT_SUPABASE_KEY;
+                if (url && key) {
+                    localStorage.setItem('supabase_url', url);
+                    localStorage.setItem('supabase_key', key);
+                }
+            }
+
+            if (url && key && window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(url, key);
+                    actualizarBadgeNube("sincronizando", "Conectando...");
+                    sincronizarDesdeSupabase();
+                } catch(e) {
+                    console.error("Error iniciando Supabase:", e);
+                    actualizarBadgeNube("offline", "Configurar Supabase");
+                    inicializarEstadoLocal();
+                }
+            } else {
+                actualizarBadgeNube("offline", "Configurar Supabase");
+                inicializarEstadoLocal();
+            }
+        }
+
+        window.abrirModalConfigSupabase = function() {
+            document.getElementById('inputSupabaseUrl').value = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+            document.getElementById('inputSupabaseKey').value = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
+            const modal = document.getElementById('modalConfigSupabase');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.cerrarModalConfigSupabase = function() {
+            const modal = document.getElementById('modalConfigSupabase');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        window.guardarCredencialesSupabase = function(e) {
+            e.preventDefault();
+            const url = document.getElementById('inputSupabaseUrl').value.trim();
+            const key = document.getElementById('inputSupabaseKey').value.trim();
+
+            localStorage.setItem('supabase_url', url);
+            localStorage.setItem('supabase_key', key);
+
+            cerrarModalConfigSupabase();
+            initSupabase();
+            mostrarToast("Credenciales guardadas y sincronizadas");
+        }
+
+        window.desconectarSupabase = function() {
+            mostrarModalConfirmacion(
+                "Desconectar Supabase",
+                "¿Seguro que deseas desconectar Supabase? La aplicación funcionará solo en modo local en tu navegador.",
+                "fa-plug-circle-xmark",
+                () => {
+                    localStorage.removeItem('supabase_url');
+                    localStorage.removeItem('supabase_key');
+                    supabaseClient = null;
+                    cerrarModalConfigSupabase();
+                    actualizarBadgeNube("offline", "Configurar Supabase");
+                    mostrarToast("Desconectado de Supabase");
+                }
+            );
+        }
+
+        function actualizarBadgeNube(estado, texto) {
+            const dot = document.getElementById('cloudDot');
+            const txt = document.getElementById('cloudText');
+            if (!dot || !txt) return;
+
+            txt.innerText = texto;
+            if (estado === 'sincronizado') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+            } else if (estado === 'sincronizando') {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+            } else if (estado === 'offline') {
+                dot.className = "w-2 h-2 rounded-full bg-blue-400";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-rose-500";
+            }
+        }
+
+        function inicializarEstadoLocal() {
+            const historialGuardado = localStorage.getItem('deudores_v8_historial');
+            const claveGuardada = localStorage.getItem('deudores_v8_clave_actual');
+
+            if (historialGuardado) {
+                try {
+                    historialMeses = JSON.parse(historialGuardado);
+                } catch(e) {
+                    historialMeses = {};
+                }
+            }
+
+            if (!historialMeses["2026-09"]) {
+                historialMeses["2026-09"] = JSON.parse(JSON.stringify(DATOS_INICIALES_EJEMPLO));
+            }
+
+            if (claveGuardada) {
+                claveMesActual = claveGuardada;
+                const partes = claveMesActual.split('-');
+                anioActual = parseInt(partes[0]);
+                mesActualIndex = parseInt(partes[1]) - 1;
+            } else {
+                mesActualIndex = 8;
+                anioActual = 2026;
+                claveMesActual = "2026-09";
+            }
+
+            cargarDatosMesActual();
+        }
+
+        async function sincronizarDesdeSupabase() {
+            if (!supabaseClient) {
+                inicializarEstadoLocal();
                 return;
             }
 
-            historialMeses[claveMesActual] = JSON.parse(JSON.stringify(datosDeudores));
+            try {
+                const { data, error } = await supabaseClient
+                    .from('app_data')
+                    .select('*')
+                    .eq('id', 'historial_principal')
+                    .single();
 
-            mesActualIndex += 1;
-            if (mesActualIndex > 11) {
-                mesActualIndex = 0;
-                anioActual += 1;
-            }
+                if (error && error.code !== 'PGRST116') {
+                    console.warn("Error leyendo de Supabase:", error);
+                    actualizarBadgeNube("offline", "Error Supabase");
+                    inicializarEstadoLocal();
+                    return;
+                }
 
-            const nuevaClave = obtenerClaveMes(anioActual, mesActualIndex);
-            
-            if (!historialMeses[nuevaClave] || historialMeses[nuevaClave].length === 0) {
-                const nuevosDatos = JSON.parse(JSON.stringify(datosDeudores));
-                nuevosDatos.forEach(deudor => {
-                    deudor.pagado = false;
-                    deudor.items.forEach(item => {
-                        if (item.cuotaTot && item.cuotaTot > 0) {
-                            if (item.cuotaAct === null || item.cuotaAct === undefined) {
-                                item.cuotaAct = 1;
-                            } else {
-                                item.cuotaAct += 1;
+                if (data && data.payload) {
+                    isSyncingFromCloud = true;
+                    historialMeses = data.payload.historialMeses || {};
+                    if (data.payload.claveMesActual) {
+                        claveMesActual = data.payload.claveMesActual;
+                        const partes = claveMesActual.split('-');
+                        anioActual = parseInt(partes[0]);
+                        mesActualIndex = parseInt(partes[1]) - 1;
+                    }
+                    isSyncingFromCloud = false;
+                } else {
+                    historialMeses["2026-09"] = JSON.parse(JSON.stringify(DATOS_INICIALES_EJEMPLO));
+                    await guardarDatosSupabase();
+                }
+
+                cargarDatosMesActual();
+                actualizarBadgeNube("sincronizado", "Sincronizado");
+
+                supabaseClient
+                    .channel('public:app_data')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.historial_principal' }, payload => {
+                        if (!isSyncingFromCloud && payload.new && payload.new.payload) {
+                            isSyncingFromCloud = true;
+                            historialMeses = payload.new.payload.historialMeses || historialMeses;
+                            if (payload.new.payload.claveMesActual) {
+                                claveMesActual = payload.new.payload.claveMesActual;
+                                const partes = claveMesActual.split('-');
+                                anioActual = parseInt(partes[0]);
+                                mesActualIndex = parseInt(partes[1]) - 1;
                             }
+                            cargarDatosMesActual();
+                            isSyncingFromCloud = false;
                         }
-                    });
-                });
-                historialMeses[nuevaClave] = nuevosDatos;
+                    })
+                    .subscribe();
+
+            } catch (err) {
+                console.warn("Excepción conectando a Supabase:", err);
+                actualizarBadgeNube("offline", "Error Supabase");
+                inicializarEstadoLocal();
+            }
+        }
+
+        async function guardarDatosSupabase() {
+            try {
+                historialMeses[claveMesActual] = datosDeudores;
+                localStorage.setItem('deudores_v8_historial', JSON.stringify(historialMeses));
+                localStorage.setItem('deudores_v8_clave_actual', claveMesActual);
+            } catch(e) {
+                console.error("Error guardando en localStorage:", e);
             }
 
-            claveMesActual = nuevaClave;
-            cargarDatosMesActual();
-            guardarDatos();
+            if (!supabaseClient || isSyncingFromCloud) return;
+            actualizarBadgeNube("sincronizando", "Guardando...");
+
+            try {
+                isSyncingFromCloud = true;
+                const payloadData = {
+                    historialMeses: historialMeses,
+                    claveMesActual: claveMesActual,
+                    actualizadoEn: new Date().toISOString()
+                };
+
+                const { error } = await supabaseClient
+                    .from('app_data')
+                    .upsert({ id: 'historial_principal', payload: payloadData });
+
+                if (error) {
+                    console.error("Error guardando en Supabase:", error);
+                    actualizarBadgeNube("offline", "Error Supabase");
+                } else {
+                    actualizarBadgeNube("sincronizado", "Sincronizado");
+                }
+                isSyncingFromCloud = false;
+            } catch (err) {
+                console.error("Excepción al guardar en Supabase:", err);
+                actualizarBadgeNube("offline", "Error Supabase");
+                isSyncingFromCloud = false;
+            }
+        }
+
+        function cargarDatosMesActual() {
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
+            }
+            datosDeudores = historialMeses[claveMesActual];
+            
+            document.getElementById('mesBadge').innerText = MESES_NOMBRES[mesActualIndex];
+            document.getElementById('labelMesAnioBoton').innerText = `${MESES_CORTOS[mesActualIndex]} ${anioActual}`;
+
+            renderizar();
+        }
+
+        function guardarDatos() {
+            historialMeses[claveMesActual] = datosDeudores;
+            guardarDatosSupabase();
+            renderizar();
+        }
+
+        // Exportación / Importación y Utilidades
+        function formatearMoneda(monto) {
+            return '$' + Math.round(monto).toLocaleString('es-CL');
+        }
+
+        function resaltarTexto(texto, consulta) {
+            if (!consulta || consulta.trim() === '') return texto;
+            const regex = new RegExp(`(${consulta.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return texto.replace(regex, '<mark class="highlight">$1</mark>');
+        }
+
+        window.actualizarEstadoFiltro = function() {
+            toggleBotonBorrarBusqueda();
+        }
+
+        window.limpiarTodosFiltros = function() {
+            const input = document.getElementById('inputBuscar');
+            const select = document.getElementById('filtroEstado');
+            if (input) input.value = '';
+            if (select) select.value = 'todos';
+            toggleBotonBorrarBusqueda();
+            renderizar();
+        }
+
+        window.toggleBotonBorrarBusqueda = function() {
+            const input = document.getElementById('inputBuscar');
+            const select = document.getElementById('filtroEstado');
+            const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
+            const btnLimpiarTodos = document.getElementById('btnLimpiarTodosFiltros');
+
+            const hayBusqueda = input && input.value.trim() !== '';
+            const hayFiltro = select && select.value !== 'todos';
+
+            if (btnLimpiar) {
+                if (hayBusqueda) btnLimpiar.classList.remove('hidden');
+                else btnLimpiar.classList.add('hidden');
+            }
+
+            if (btnLimpiarTodos) {
+                if (hayBusqueda || hayFiltro) btnLimpiarTodos.classList.remove('hidden');
+                else btnLimpiarTodos.classList.add('hidden');
+            }
+        }
+
+        window.limpiarBusqueda = function() {
+            const input = document.getElementById('inputBuscar');
+            if (input) input.value = '';
+            toggleBotonBorrarBusqueda();
+            renderizar();
+            if (input) input.focus();
         }
 
         window.exportarRespaldoJSON = function() {
@@ -1273,7 +1339,7 @@
                             claveMesActual = parsed.claveMes;
                             const partes = claveMesActual.split('-');
                             anioActual = parseInt(partes[0]);
-                            mesActualIndex = parseInt(partes[1]);
+                            mesActualIndex = parseInt(partes[1]) - 1;
                         }
                         cargarDatosMesActual();
                         guardarDatos();
@@ -1366,15 +1432,25 @@
             copiarAlPortapapeles(texto, `¡Resumen de ${deudor.nombre} copiado!`);
         }
 
-        let toastTimeout;
         function copiarAlPortapapeles(texto, mensajeExito) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(texto).then(() => {
+                    mostrarToast(mensajeExito);
+                }).catch(() => {
+                    fallbackCopiar(texto, mensajeExito);
+                });
+            } else {
+                fallbackCopiar(texto, mensajeExito);
+            }
+        }
+
+        function fallbackCopiar(texto, mensajeExito) {
             const inputAux = document.createElement("textarea");
             inputAux.value = texto;
             document.body.appendChild(inputAux);
             inputAux.select();
             document.execCommand("copy");
             document.body.removeChild(inputAux);
-
             mostrarToast(mensajeExito);
         }
 
@@ -1400,7 +1476,6 @@
             const mesNombre = MESES_NOMBRES[mesActualIndex];
             let totalGeneralMes = 0;
             let totalCobrado = 0;
-            let totalPendiente = 0;
 
             let htmlContenido = `
                 <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background-color: #ffffff;">
@@ -1469,7 +1544,7 @@
                 `;
             });
 
-            totalPendiente = Math.max(0, totalGeneralMes - totalCobrado);
+            const totalPendiente = Math.max(0, totalGeneralMes - totalCobrado);
 
             htmlContenido += `
                     <div style="margin-top: 24px; padding: 12px; background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; page-break-inside: avoid;">
@@ -1502,6 +1577,22 @@
 
             html2pdf().set(opt).from(elem).save();
         }
+
+        // Eventos Globales
+        document.addEventListener('focusin', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 150);
+            }
+        });
+
+        window.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-overlay')) {
+                e.target.classList.add('hidden');
+                e.target.classList.remove('flex');
+            }
+        });
 
         window.onload = function() {
             initSupabase();
