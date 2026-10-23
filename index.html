@@ -25,8 +25,8 @@
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         ::-webkit-scrollbar {
             width: 6px;
@@ -68,11 +68,131 @@
             animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        .deudor-card { touch-action: pan-y; will-change: transform; }
-        @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+        /* ====== MENÚ INFERIOR MEJORADO ====== */
+        .dock-item {
+            position: relative; flex: 1; display: flex; flex-direction: column; align-items: center;
+            gap: 2px; padding: 2px 0 2px; color: #94a3b8; transition: color .2s, transform .15s;
+            -webkit-tap-highlight-color: transparent; min-width: 0;
+        }
+        .dock-item:active { transform: scale(0.9); }
+        .dock-ico {
+            width: 46px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 17px; transition: background .25s, transform .25s, color .25s;
+        }
+        .dock-label { font-size: 10px; font-weight: 600; letter-spacing: .01em; transition: color .2s; }
+        .dock-item:hover { color: #cbd5e1; }
+        .dock-copy.is-pulse .dock-ico { animation: waPulse .7s ease; background: rgba(255,255,255,.12); }
+        @keyframes waPulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,255,255,.35); }
+            100% { box-shadow: 0 0 0 16px rgba(34,197,94,0); }
+        }
+
+        .dock-center { flex: 0 0 64px; height: 32px; margin-top: 8px; display: flex; align-items: center; justify-content: center; align-self: flex-start; }
+        .dock-fab {
+            width: 46px; height: 46px; border-radius: 9999px; color: #fff; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #8b5cf6 0%, #c026d3 100%);
+            border: 3px solid #0f172a;
+            box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.65), 0 0 0 1px rgba(255,255,255,.12) inset;
+            transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .modo-claro .dock-fab { border-color:#f1f5f9; }
+        .dock-fab:hover { box-shadow: 0 14px 30px -5px rgba(192, 38, 211, 0.75); }
+        .dock-fab:active { transform: scale(0.88); }
+        .dock-fab i { transition: transform .35s cubic-bezier(.34,1.56,.64,1); }
+        .dock-fab.is-open i { transform: rotate(135deg); }
+        .dock-fab.is-open { background: linear-gradient(135deg, #475569 0%, #1e293b 100%); box-shadow: 0 10px 25px -5px rgba(0,0,0,.6); }
+
+        /* El menú nace desde el botón morado y vuelve a él al cerrarse. */
+        .menu-sheet > div {
+            transform: translateY(42px) scale(.08);
+            transform-origin: 50% calc(100% + 48px);
+            opacity: 0;
+            visibility: hidden;
+            transition: transform .34s cubic-bezier(.2,.8,.2,1), opacity .22s ease, visibility 0s .34s;
+            will-change: transform, opacity;
+        }
+        .menu-sheet.is-open { pointer-events: auto; }
+        .menu-sheet.is-open > div {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            visibility: visible;
+            transition: transform .34s cubic-bezier(.2,.8,.2,1), opacity .22s ease, visibility 0s 0s;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .menu-sheet > div, .menu-sheet.is-open > div { transition-duration: .01ms; }
+        }
+        .menu-overlay.is-open { opacity: 1; pointer-events: auto; }
+
+        .menu-tile {
+            display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 2px;
+            border-radius: 16px; color: #cbd5e1; font-size: 10.5px; font-weight: 600; text-align: center;
+            transition: background .2s, transform .15s; -webkit-tap-highlight-color: transparent;
+        }
+        .menu-tile:hover { background: rgba(255,255,255,.05); }
+        .menu-tile:active { transform: scale(0.92); }
+        .menu-ico {
+            width: 46px; height: 46px; border-radius: 15px; color: #fff; font-size: 17px;
+            display: flex; align-items: center; justify-content: center;
+            background-image: linear-gradient(135deg, var(--tw-gradient-from), var(--tw-gradient-to));
+            box-shadow: 0 6px 14px -4px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.25);
+        }
+        @media (min-width: 640px) { #dockNav { padding-bottom: 12px !important; } }
+
+
+        @keyframes mesEntraDer { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes mesEntraIzq { from { opacity: 0; transform: translateX(-48px); } to { opacity: 1; transform: translateX(0); } }
+        .mes-entra-der { animation: mesEntraDer .34s cubic-bezier(.32,.72,0,1); }
+        .mes-entra-izq { animation: mesEntraIzq .34s cubic-bezier(.32,.72,0,1); }
+        @media (prefers-reduced-motion: reduce) { .mes-entra-der, .mes-entra-izq { animation: none; } }
+        .tab-est { padding: 6px 4px; border-radius: 8px; font-size: 11px; font-weight: 600; color: #94a3b8; transition: all .2s; }
+        .tab-est.is-on { background: #8b5cf6; color: #fff; box-shadow: 0 4px 10px -3px rgba(139,92,246,.55); }
+        .btn-mini { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:rgba(15,23,42,.6); border:1px solid #334155; color:#94a3b8; font-size:12px; transition:all .15s; }
+        .btn-mini:hover { color:#e2e8f0; border-color:#8b5cf6; }
+        .btn-mini:active { transform:scale(.92); }
+        .btn-wa { color:#4ade80; }
+
+        .opciones-cerrado { display: none !important; }
+        #btnOpciones[aria-expanded="true"] #chevOpciones { transform: rotate(180deg); }
+
+        /* ===== Modo claro ===== */
+        html.modo-claro { color-scheme: light; }
+        .modo-claro [class*="bg-slate-9"], .modo-claro [class*="bg-slate-950"] { background-color:#f1f5f9 !important; }
+        .modo-claro [class*="bg-slate-8"] { background-color:#ffffff !important; }
+        .modo-claro [class*="bg-slate-7"] { background-color:#e2e8f0 !important; }
+        .modo-claro [class*="border-slate-7"], .modo-claro [class*="border-slate-6"] { border-color:#cbd5e1 !important; }
+        .modo-claro [class*="text-slate-1"], .modo-claro [class*="text-slate-2"] { color:#0f172a !important; }
+        .modo-claro [class*="text-slate-3"] { color:#334155 !important; }
+        .modo-claro [class*="text-slate-4"] { color:#475569 !important; }
+        .modo-claro [class*="text-slate-5"] { color:#64748b !important; }
+        .modo-claro input, .modo-claro select, .modo-claro textarea { color:#0f172a !important; }
+        .modo-claro input::placeholder { color:#94a3b8; }
+        .modo-claro h1.text-white, .modo-claro h3.text-white, .modo-claro h3.text-white.uppercase { color:#0f172a !important; }
+        .modo-claro .text-purple-300, .modo-claro .text-purple-400 { color:#6d28d9 !important; }
+        .modo-claro .text-emerald-400 { color:#059669 !important; }
+        .modo-claro .text-rose-300, .modo-claro .text-rose-400 { color:#e11d48 !important; }
+        .modo-claro .text-amber-300 { color:#b45309 !important; }
+        .modo-claro .text-teal-300 { color:#0f766e !important; }
+        .modo-claro .text-green-400 { color:#16a34a !important; }
+        .modo-claro [class*="bg-purple-950"] { background-color:#f3e8ff !important; }
+        .modo-claro [class*="bg-emerald-950/10"] { background-color:#ecfdf5 !important; }
+        .modo-claro [class*="bg-emerald-950"] { background-color:#d1fae5 !important; }
+        .modo-claro [class*="bg-amber-950"] { background-color:#fef3c7 !important; }
+        .modo-claro [class*="bg-teal-950"] { background-color:#ccfbf1 !important; }
+        .modo-claro .dock-item { color:#64748b; }
+        .modo-claro .dock-label { color:inherit; }
+        .modo-claro .menu-tile { color:#334155; }
+        .modo-claro .btn-mini { background:#ffffff; border-color:#cbd5e1; color:#475569; }
+        .modo-claro .btn-wa { color:#16a34a; }
+        .modo-claro .franja-mes { background:#ffffff; border-color:#cbd5e1; color:#475569; }
+        .modo-claro .franja-mes.is-actual { color:#ffffff; }
+        .modo-claro ::-webkit-scrollbar-track { background:#e2e8f0; }
+        .modo-claro ::-webkit-scrollbar-thumb { background:#94a3b8; }
     </style>
+    <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-28 sm:pb-20 selection:bg-purple-500 selection:text-white relative">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-36 sm:pb-32 selection:bg-purple-500 selection:text-white relative">
 
     <header class="bg-slate-800/95 border-b border-slate-700/80 z-30 shadow-lg">
         <div class="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3">
@@ -109,18 +229,23 @@
                         <button onclick="cambiarMesRapido(-1)" class="px-2 py-1.5 text-purple-300 hover:bg-purple-600/20 transition text-xs" title="Mes Anterior">
                             <i class="fa-solid fa-chevron-left"></i>
                         </button>
-                        <button onclick="abrirModalSeleccionarMes()" class="px-2.5 sm:px-3 py-1.5 font-mono font-bold text-[11px] sm:text-xs text-purple-300 hover:bg-purple-600/20 transition flex items-center gap-1.5 truncate">
+                        <button onclick="abrirModalSeleccionarMes()" class="px-2.5 sm:px-3 py-1.5 font-mono font-bold text-[11px] sm:text-xs leading-none text-purple-300 hover:bg-purple-600/20 transition inline-flex items-center gap-1.5 min-h-[32px]">
                             <i class="fa-solid fa-calendar-days text-purple-400 text-xs shrink-0"></i>
-                            <span id="labelMesAnioBoton" class="truncate">SEP 2026</span>
+                            <span id="labelMesAnioBoton" class="block leading-none pt-px">SEP 2026</span>
                         </button>
                         <button onclick="cambiarMesRapido(1)" class="px-2 py-1.5 text-purple-300 hover:bg-purple-600/20 transition text-xs" title="Mes Siguiente">
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
                     </div>
+                    <button id="btnOpciones" onclick="toggleOpciones(event)" aria-expanded="false" aria-controls="panelOpciones" class="bg-slate-900 hover:bg-slate-950 border border-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm text-xs">
+                        <i class="fa-solid fa-sliders text-purple-400"></i>
+                        <span class="hidden sm:inline">Opciones</span>
+                        <i id="chevOpciones" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-300"></i>
+                    </button>
                 </div>
             </div>
 
-            <div id="accionesPrincipales" class="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-stretch lg:items-center gap-2 pt-3 border-t border-slate-700/50">
+            <div id="panelOpciones" class="opciones-cerrado grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-end gap-1.5 sm:gap-2 pt-2 border-t border-slate-700/50">
 
                 <button onclick="avanzarMesGlobal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Avanza de mes, resetea pagos y suma +1 a las cuotas activas">
                     <i class="fa-solid fa-calendar-plus"></i> +1 Cuota (Nuevo Mes)
@@ -158,50 +283,22 @@
         </div>
     </header>
 
-    <div id="menuFlotanteAcciones" class="hidden fixed bottom-[5.25rem] right-4 left-4 sm:left-auto sm:w-80 z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-slate-600 bg-slate-900/95 p-3 shadow-2xl backdrop-blur space-y-3" aria-hidden="true">
-        <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-bold text-white"><i class="fa-solid fa-bolt text-indigo-300 mr-2"></i>Acciones</span>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones()" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-700 hover:text-white" aria-label="Cerrar menú"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <button type="button" onclick="buscarDesdeMenuFlotante()" class="w-full rounded-xl border border-indigo-400/30 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
-            <i class="fa-solid fa-magnifying-glass"></i> Buscar y ver resultados
-        </button>
-        <p class="text-[11px] text-slate-400">La búsqueda y los botones de arriba siguen visibles. Estas son también sus opciones rápidas.</p>
-        <div class="grid grid-cols-2 gap-2">
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); avanzarMesGlobal()" class="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-calendar-plus"></i> +1 Cuota / nuevo mes</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalCopiarMes()" class="rounded-xl bg-amber-600 hover:bg-amber-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Copiar mes</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); confirmarVaciarMesActual()" class="rounded-xl bg-rose-700 hover:bg-rose-600 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-trash-can"></i> Eliminar mes</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); exportarRespaldoJSON()" class="rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> Guardar JSON</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); document.getElementById('inputImportarJSON').click()" class="rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-upload"></i> Cargar JSON</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); exportarResumenWhatsApp()" class="rounded-xl bg-green-600 hover:bg-green-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-regular fa-copy"></i> Copiar todo</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); exportarPDF()" class="rounded-xl bg-rose-600 hover:bg-rose-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalDeudor()" class="rounded-xl bg-purple-600 hover:bg-purple-500 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-user-plus"></i> Nuevo deudor</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalReglas()" class="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-circle-info"></i> Reglas</button>
-            <button type="button" onclick="cerrarMenuFlotanteAcciones(); abrirModalSeleccionarMes()" class="rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-calendar-days"></i> Elegir mes</button>
-        </div>
-    </div>
 
 
-    <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6 pb-28">
+    <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6">
 
-        <section id="resumenRapido" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Total por cobrar</p><p id="resumenTotal" class="text-lg font-black text-purple-300 mt-1">$0</p></div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Deudores</p><p id="resumenDeudores" class="text-lg font-black text-white mt-1">0</p></div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Pagados</p><p id="resumenPagados" class="text-lg font-black text-emerald-400 mt-1">0</p></div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3"><p class="text-[10px] uppercase tracking-wider text-slate-400">Pendientes</p><p id="resumenPendientes" class="text-lg font-black text-amber-300 mt-1">0</p></div>
-        </section>
         <div id="vistaDeudores" class="space-y-5">
-            <div class="flex flex-col sm:flex-row justify-between items-center gap-2.5 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
-                <div id="herramientasBusqueda" class="relative w-full">
+            <div class="flex flex-row justify-between items-center gap-2 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
+                <div class="relative flex-1 min-w-0 sm:w-72">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-                    <input type="text" id="inputBuscar" oninput="toggleBotonBorrarBusqueda(); renderizar();" placeholder="Buscar deudor o concepto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+                    <input type="text" id="inputBuscar" oninput="toggleBotonBorrarBusqueda(); programarRenderBusqueda();" placeholder="Buscar deudor o concepto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
                     <button id="btnLimpiarBusqueda" onclick="limpiarBusqueda()" class="hidden absolute right-2.5 top-2 text-slate-500 hover:text-white text-xs p-0.5">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                    <span class="text-xs text-slate-400">Filtrar:</span>
-                    <select id="filtroEstado" onchange="actualizarEstadoFiltro(); renderizar();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-500">
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-xs text-slate-400 hidden sm:inline">Filtrar:</span>
+                    <select id="filtroEstado" onchange="actualizarEstadoFiltro(); renderizar();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-purple-500 max-w-[145px] sm:max-w-none">
                         <option value="todos">Todos los registros</option>
                         <option value="activos">Cuotas Activas del Mes</option>
                         <option value="cero">Cuotas 0/X (Futuras)</option>
@@ -216,7 +313,18 @@
                 </div>
             </div>
 
-            <div id="contenedorDeudores" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div id="barraMarcado" class="flex flex-wrap items-center justify-between gap-2 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> Marcados <span id="cntMarcados" class="font-mono">0</span></span>
+                    <span class="text-slate-400"><i class="fa-regular fa-circle"></i> Desmarcados <span id="cntDesmarcados" class="font-mono">0</span></span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="marcarTodos(true)" class="bg-transparent border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 px-2 py-1 rounded-md text-[10px] transition flex items-center gap-1"><i class="fa-solid fa-check-double"></i> Marcar todos</button>
+                    <button onclick="marcarTodos(false)" class="bg-transparent border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 px-2 py-1 rounded-md text-[10px] transition flex items-center gap-1"><i class="fa-solid fa-xmark"></i> Desmarcar todos</button>
+                </div>
+            </div>
+            <div id="resumenBusqueda" class="hidden text-[11px] text-slate-400 px-1"></div>
+            <div id="contenedorDeudores" class="grid grid-cols-1 gap-3">
             </div>
 
             <div id="emptyState" class="hidden text-center py-12 bg-slate-800/30 border border-dashed border-slate-700 rounded-2xl px-4">
@@ -236,10 +344,126 @@
 
     </main>
 
+    <!-- MENÚ INFERIOR MEJORADO (DOCK FLOTANTE + HOJA DE ACCIONES) -->
+    <div id="menuSheetOverlay" onclick="cerrarMenuAcciones()" class="menu-overlay fixed inset-0 z-[41] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+    <section id="menuSheet" role="dialog" aria-label="Acciones rápidas" aria-hidden="true" class="menu-sheet fixed left-0 right-0 z-[42] px-3 pointer-events-none" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);">
+        <div class="max-w-md mx-auto bg-slate-800/95 backdrop-blur-2xl border border-white/10 rounded-[28px] shadow-[0_-20px_60px_-10px_rgba(124,58,237,0.35)] px-4 pt-3 pb-4">
+            <div class="w-10 h-1 rounded-full bg-slate-600 mx-auto mb-3"></div>
+            <div class="flex items-center justify-between mb-3 px-1">
+                <div>
+                    <h3 class="text-sm font-bold text-white">Acciones rápidas</h3>
+                    <p class="text-[11px] text-slate-400 flex items-center gap-1.5"><span id="sheetDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span><span id="sheetNube">Nube: sin conexión</span></p>
+                </div>
+                <button onclick="cerrarMenuAcciones()" class="w-8 h-8 rounded-full bg-slate-700/70 hover:bg-slate-600 text-slate-300 flex items-center justify-center transition active:scale-90" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <button onclick="accionMenu(() => abrirModalDeudor())" class="w-full mb-3 flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white shadow-lg shadow-purple-900/40 active:scale-[0.98] transition">
+                <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><i class="fa-solid fa-user-plus"></i></span>
+                <span class="text-left flex-1">
+                    <span class="block text-sm font-bold leading-tight">Nuevo deudor</span>
+                    <span class="block text-[11px] text-purple-100/80">Registra una persona y sus cuentas</span>
+                </span>
+                <i class="fa-solid fa-chevron-right text-xs opacity-70"></i>
+            </button>
+
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="accionMenu(() => avanzarMesGlobal())" class="menu-tile">
+                    <span class="menu-ico from-emerald-500 to-teal-600"><i class="fa-solid fa-calendar-plus"></i></span>
+                    <span>+1 Cuota</span>
+                </button>
+                <button onclick="accionMenu(() => abrirModalCopiarMes())" class="menu-tile">
+                    <span class="menu-ico from-amber-500 to-orange-600"><i class="fa-solid fa-copy"></i></span>
+                    <span>Copiar mes</span>
+                </button>
+                <button onclick="accionMenu(() => exportarPDF())" class="menu-tile">
+                    <span class="menu-ico from-rose-500 to-pink-600"><i class="fa-solid fa-file-pdf"></i></span>
+                    <span>PDF</span>
+                </button>
+                <button onclick="accionMenu(() => abrirModalReglas())" class="menu-tile">
+                    <span class="menu-ico from-sky-500 to-indigo-600"><i class="fa-solid fa-circle-info"></i></span>
+                    <span>Reglas</span>
+                </button>
+                <button onclick="accionMenu(() => exportarRespaldoJSON())" class="menu-tile">
+                    <span class="menu-ico from-blue-500 to-cyan-600"><i class="fa-solid fa-download"></i></span>
+                    <span>Guardar</span>
+                </button>
+                <button onclick="accionMenu(() => document.getElementById('inputImportarJSON').click())" class="menu-tile">
+                    <span class="menu-ico from-slate-500 to-slate-700"><i class="fa-solid fa-upload"></i></span>
+                    <span>Cargar</span>
+                </button>
+                <button onclick="accionMenu(() => abrirModalConfigSupabase())" class="menu-tile">
+                    <span class="menu-ico from-violet-500 to-purple-700"><i class="fa-solid fa-cloud"></i></span>
+                    <span>Nube</span>
+                </button>
+                <button onclick="accionMenu(() => confirmarVaciarMesActual())" class="menu-tile">
+                    <span class="menu-ico from-red-500 to-rose-700"><i class="fa-solid fa-trash-can"></i></span>
+                    <span>Vaciar mes</span>
+                </button>
+                <button onclick="accionMenu(() => irAMesActual())" class="menu-tile">
+                    <span class="menu-ico from-violet-500 to-fuchsia-700"><i class="fa-solid fa-calendar-day"></i></span>
+                    <span>Mes actual</span>
+                </button>
+                <button onclick="accionMenu(() => exportarCSV())" class="menu-tile">
+                    <span class="menu-ico from-green-500 to-emerald-700"><i class="fa-solid fa-file-csv"></i></span>
+                    <span>Excel/CSV</span>
+                </button>
+                <button onclick="accionMenu(() => abrirEstadisticas())" class="menu-tile">
+                    <span class="menu-ico from-indigo-500 to-blue-700"><i class="fa-solid fa-chart-simple"></i></span>
+                    <span>Estadísticas</span>
+                </button>
+                <button onclick="accionMenu(() => toggleTema())" class="menu-tile">
+                    <span class="menu-ico from-amber-400 to-slate-600"><i class="fa-solid fa-circle-half-stroke"></i></span>
+                    <span>Tema</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <nav id="dockNav" class="fixed bottom-0 left-0 right-0 z-[43] px-3 pointer-events-none" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);">
+        <div class="dock max-w-md mx-auto relative pointer-events-auto flex items-start justify-between bg-slate-800/65 backdrop-blur-2xl border border-white/10 rounded-[28px] px-2 pt-2 pb-2.5 shadow-[0_-4px_28px_-6px_rgba(168,85,247,0.4)]">
+
+            <button data-tab="inicio" onclick="navInicio()" class="dock-item is-active" aria-label="Inicio">
+                <span class="dock-ico"><i class="fa-solid fa-house"></i></span>
+                <span class="dock-label">Inicio</span>
+            </button>
+
+            <button data-tab="buscar" onclick="navBuscar()" class="dock-item" aria-label="Buscar">
+                <span class="dock-ico"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <span class="dock-label">Buscar</span>
+            </button>
+
+            <div class="dock-center">
+                <button id="dockFab" onclick="alternarMenuAcciones()" class="dock-fab" aria-label="Acciones rápidas" aria-expanded="false">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+
+
+
+            <button data-tab="meses" onclick="navMeses()" class="dock-item" aria-label="Meses">
+                <span class="dock-ico"><i class="fa-solid fa-calendar-days"></i></span>
+                <span class="dock-label">Meses</span>
+            </button>
+
+            <button data-tab="copiar" onclick="copiarGeneral()" class="dock-item dock-copy" aria-label="Copiar resumen general">
+                <span class="dock-ico"><i class="fa-regular fa-copy"></i></span>
+                <span class="dock-label">Copiar</span>
+            </button>
+        </div>
+    </nav>
+
+
+
+    <!-- ETIQUETA FIJA DEL MES ACTUAL -->
+    <button id="pillMes" onclick="abrirModalSeleccionarMes()" aria-label="Cambiar mes" class="fixed left-1/2 -translate-x-1/2 z-[38] bg-slate-900/90 backdrop-blur border border-purple-500/50 text-purple-300 font-mono font-bold text-[11px] px-3 py-1 rounded-full shadow-lg transition active:scale-95" style="top: calc(env(safe-area-inset-top, 0px) + 6px);">--</button>
     <!-- BANNER FLOTANTE DE NOTIFICACIÓN (TOAST) -->
-    <div id="toastNotificacion" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-emerald-400/40 text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
+    <div id="toastNotificacion" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 88px); width: max-content; max-width: min(92vw, 440px); white-space: normal;" class="fixed left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-emerald-400/40 text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
         <i class="fa-solid fa-circle-check text-emerald-200 text-base"></i>
         <span id="toastMensaje">Texto copiado al portapapeles</span>
+        <button id="btnDeshacer" onclick="deshacerUltimo()" class="hidden ml-1 bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded-md text-[11px] font-bold transition"><i class="fa-solid fa-rotate-left"></i> Deshacer</button>
     </div>
 
     <!-- MODAL CONFIRMACION PERSONALIZADO -->
@@ -370,7 +594,7 @@
     </div>
 
     <!-- MODAL SELECCIONAR MES -->
-    <div id="modalSeleccionarMes" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+    <div id="modalSeleccionarMes" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-end justify-center p-4 z-[42]" onclick="if(event.target===this)cerrarModalSeleccionarMes()">
         <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
@@ -519,6 +743,19 @@
         };
 
         // Renderizado principal
+        // Mantiene qué fichas están desplegadas mientras se actualiza la lista.
+        window.deudoresAbiertos = window.deudoresAbiertos || new Set();
+        window.toggleDetalleDeudor = function(id) {
+            // Solo puede quedar un deudor abierto a la vez.
+            if (window.deudoresAbiertos.has(id)) {
+                window.deudoresAbiertos.clear();
+            } else {
+                window.deudoresAbiertos.clear();
+                window.deudoresAbiertos.add(id);
+            }
+            renderizar();
+        };
+
         function renderizar() {
             const busqueda = document.getElementById('inputBuscar').value.toLowerCase().trim();
             const filtroEstado = document.getElementById('filtroEstado').value;
@@ -527,15 +764,6 @@
             const emptyState = document.getElementById('emptyState');
 
             if (!contenedor) return;
-            const totalGeneral = datosDeudores.reduce((sum, d) => sum + (d.pagado ? 0 : (d.items || []).reduce((sub, i) => {
-                const cero = i.cuotaAct === 0;
-                const completada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
-                return sub + (!cero && !completada ? (Number(i.monto) || 0) : 0);
-            }, 0)), 0);
-            document.getElementById('resumenTotal').textContent = formatearMoneda(totalGeneral);
-            document.getElementById('resumenDeudores').textContent = datosDeudores.length;
-            document.getElementById('resumenPagados').textContent = datosDeudores.filter(d => d.pagado).length;
-            document.getElementById('resumenPendientes').textContent = datosDeudores.filter(d => !d.pagado).length;
             contenedor.innerHTML = "";
 
             let deudoresMostrados = 0;
@@ -600,14 +828,15 @@
                         return `
                             <div class="flex items-center justify-between py-2 border-b border-slate-700/40 text-xs">
                                 <div class="flex items-center gap-1.5 min-w-0 pr-2">
-                                    <span class="text-slate-200 font-medium truncate">${conceptoResaltado}</span>
+                                    ${d.modoCuentas ? `<button onclick="togglePagadoItem('${d.id}', '${item.id}')" class="p-0.5 transition ${item.pagado ? 'text-emerald-400' : 'text-slate-500 hover:text-emerald-400'}" title="${item.pagado ? 'Desmarcar pagada' : 'Marcar pagada'}"><i class="${item.pagado ? 'fa-solid' : 'fa-regular'} fa-circle-check text-[12px]"></i></button>` : ''}
+                                    <span class="font-medium truncate ${d.modoCuentas && item.pagado ? 'text-emerald-400 line-through' : 'text-slate-200'}">${conceptoResaltado}</span>
                                     ${prestadoTexto}
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
                                     <div class="flex items-center gap-1">
                                         ${badgeCuota}
                                     </div>
-                                    <span class="font-mono font-bold ${item.esCuotaCero || item.esCuotaCompletada ? 'text-slate-500 line-through' : 'text-slate-200'}">${formatearMoneda(item.monto)}</span>
+                                    <span class="font-mono font-bold ${item.esCuotaCero || item.esCuotaCompletada ? 'text-slate-500 line-through' : (d.modoCuentas && item.pagado ? 'text-emerald-400 line-through' : 'text-slate-200')}">${formatearMoneda(item.monto)}</span>
                                     <button onclick="abrirModalItem('${d.id}', '${item.id}')" class="text-slate-500 hover:text-purple-400 p-0.5 transition" title="Editar"><i class="fa-solid fa-pen text-[10px]"></i></button>
                                     <button onclick="eliminarItem('${d.id}', '${item.id}')" class="text-slate-500 hover:text-rose-400 p-0.5 transition" title="Eliminar"><i class="fa-solid fa-trash text-[10px]"></i></button>
                                 </div>
@@ -616,16 +845,31 @@
                     }).join('');
 
                     const nombreResaltado = resaltarTexto(d.nombre, busqueda);
+                    const cobradoDeudor = cobradoDe(d);
+                    const abonadoDeudor = totalAbonado(d);
+                    const faltaDeudor = d.pagado ? 0 : Math.max(0, subtotalDeudor - abonadoDeudor);
+                    const barraDeudor = abonadoDeudor > 0 && !d.pagado
+                        ? `<div class="text-[11px] font-mono pt-2 mt-2 border-t border-slate-700/50 truncate"><span class="text-emerald-400">Abonó ${formatearMoneda(abonadoDeudor)}</span> · <span class="text-rose-300">Falta ${formatearMoneda(faltaDeudor)}</span></div>`
+                        : '';
 
                     contenedor.innerHTML += `
-                        <div data-deudor-id="${d.id}" class="deudor-card bg-slate-800 border ${d.pagado ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-700/80'} rounded-2xl p-4 shadow-lg flex flex-col justify-between transition">
+                        <div class="${window.deudoresAbiertos.has(d.id) ? 'bg-slate-800 border-purple-500 ring-1 ring-purple-500/40 shadow-purple-950/40' : 'bg-slate-800 border-slate-700/80'} border rounded-2xl p-3 shadow-lg flex flex-col justify-between transition-all duration-200">
+                            <button type="button" onclick="toggleDetalleDeudor('${d.id}')" aria-expanded="${window.deudoresAbiertos.has(d.id)}" class="w-full flex items-center justify-between gap-3 text-left rounded-xl px-2 py-2 transition ${window.deudoresAbiertos.has(d.id) ? 'bg-purple-950/40' : 'hover:bg-slate-700/50'}">
+                                <span class="flex items-center gap-2 min-w-0">
+                                    <i class="fa-solid fa-user text-purple-300 text-sm shrink-0"></i>
+                                    <span class="font-black text-sm uppercase tracking-wide truncate text-white">${nombreResaltado}</span>
+                                    ${d.pagado ? '<span class="text-[9px] text-emerald-300 border border-emerald-700 rounded px-1.5 py-0.5">PAGADO</span>' : ''}
+                                </span>
+                                <i class="fa-solid ${window.deudoresAbiertos.has(d.id) ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400 text-xs shrink-0"></i>
+                            </button>
+                            <div id="detalleDeudor-${d.id}" class="${window.deudoresAbiertos.has(d.id) ? '' : 'hidden'} pt-2">
                             <div>
                                 <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-700/80">
                                     <div class="flex items-center gap-2.5 min-w-0">
                                         <button onclick="togglePagadoDeudor('${d.id}')" class="w-6 h-6 rounded-lg flex items-center justify-center border transition shrink-0 ${d.pagado ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'bg-slate-900 border-slate-600 text-transparent hover:border-purple-400'}" title="Marcar deudor como totalmente pagado este mes">
                                             <i class="fa-solid fa-check text-xs font-bold"></i>
                                         </button>
-                                        <h3 class="font-bold text-sm sm:text-base ${d.pagado ? 'text-emerald-400 line-through' : 'text-white'} uppercase tracking-wide truncate">${nombreResaltado}</h3>
+                                        <div class="flex items-center gap-1.5 min-w-0"><button onclick="toggleModoCuentas('${d.id}')" title="${d.modoCuentas ? 'Desactivar marcado por cuenta' : 'Activar marcado por cuenta'}" class="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] border transition ${d.modoCuentas ? 'bg-purple-600/30 border-purple-500 text-purple-200' : 'border-slate-700 text-slate-500 hover:text-slate-300'}"><i class="fa-solid fa-list-check"></i></button></div>
                                     </div>
                                     
                                     <div class="flex items-center gap-1.5 shrink-0">
@@ -633,7 +877,7 @@
                                             <i class="fa-solid fa-plus text-xs"></i>
                                         </button>
                                         <button onclick="exportarWhatsAppDeudor('${d.id}')" class="bg-green-600/20 hover:bg-green-600/40 border border-green-500/40 text-green-400 text-[10px] px-2 py-1 rounded-lg transition font-medium flex items-center gap-1" title="Copiar resumen de este deudor">
-                                            <i class="fa-regular fa-copy text-xs"></i> Copiar
+                                            <i class="fa-regular fa-copy text-xs"></i>
                                         </button>
                                         <button onclick="abrirModalDeudor('${d.id}')" class="text-slate-500 hover:text-white p-1 text-xs" title="Editar Nombre"><i class="fa-solid fa-pen"></i></button>
                                         <button onclick="eliminarDeudor('${d.id}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Eliminar Deudor"><i class="fa-solid fa-trash"></i></button>
@@ -645,9 +889,11 @@
                                 </div>
                             </div>
 
+                            ${barraDeudor}
                             <div class="pt-3 mt-3 border-t border-slate-700/80 flex items-center justify-between">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">TOTAL ${MESES_NOMBRES[mesActualIndex]} ${anioActual}</span>
-                                <span class="font-mono font-black text-lg ${d.pagado ? 'text-emerald-400 line-through' : 'text-purple-300'}">${formatearMoneda(subtotalDeudor)}</span>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">${cobradoDeudor > 0 && !d.pagado ? 'PENDIENTE' : 'TOTAL'} ${MESES_NOMBRES[mesActualIndex]} ${anioActual}</span>
+                                <span class="font-mono font-black text-lg ${d.pagado ? 'text-emerald-400 line-through' : 'text-purple-300'}">${formatearMoneda(d.pagado ? subtotalDeudor : subtotalDeudor - cobradoDeudor)}</span>
+                            </div>
                             </div>
                         </div>
                     `;
@@ -733,6 +979,21 @@
             );
         }
 
+        window.toggleModoCuentas = function (deudorId) {
+            const d = datosDeudores.find(x => x.id === deudorId);
+            if (!d) return;
+            d.modoCuentas = !d.modoCuentas;
+            guardarDatos();
+        };
+        window.togglePagadoItem = function (deudorId, itemId) {
+            const d = datosDeudores.find(x => x.id === deudorId);
+            const it = d && d.items.find(x => x.id === itemId);
+            if (!it || !d.modoCuentas) return;
+            it.pagado = !it.pagado;
+            const contadas = d.items.filter(esCuentaContada);
+            if (contadas.length > 0) d.pagado = contadas.every(x => x.pagado);
+            guardarDatos();
+        };
         window.togglePagadoDeudor = function(deudorId) {
             const deudor = datosDeudores.find(d => d.id === deudorId);
             if (deudor) {
@@ -869,6 +1130,7 @@
                         const nuevosDatos = JSON.parse(JSON.stringify(datosDeudores));
                         nuevosDatos.forEach(deudor => {
                             deudor.pagado = false;
+                            deudor.abonos = [];
                             deudor.items.forEach(item => {
                                 if (item.cuotaTot && item.cuotaTot > 0) {
                                     if (item.cuotaAct === null || item.cuotaAct === undefined) {
@@ -905,14 +1167,9 @@
         }
 
         window.abrirModalSeleccionarMes = function() {
-            const modal = document.getElementById('modalSeleccionarMes');
-            // Si ya está abierto, volver a pulsar Elegir mes lo cierra.
-            if (modal && !modal.classList.contains('hidden')) {
-                cerrarModalSeleccionarMes();
-                return;
-            }
             anioSeleccionModal = anioActual;
             renderizarGridMesesModal();
+            const modal = document.getElementById('modalSeleccionarMes');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
@@ -967,22 +1224,15 @@
         }
 
         window.irAMesActual = function() {
-            // Ir al último mes que realmente tenga deudores registrados.
-            const mesesConDatos = Object.keys(historialMeses || {})
-                .filter(clave => /^\d{4}-\d{2}$/.test(clave) && Array.isArray(historialMeses[clave]) && historialMeses[clave].length > 0)
-                .sort();
-            if (mesesConDatos.length > 0) {
-                claveMesActual = mesesConDatos[mesesConDatos.length - 1];
-                const partes = claveMesActual.split('-');
-                anioActual = Number(partes[0]);
-                mesActualIndex = Number(partes[1]) - 1;
-            } else {
-                const fechaActual = new Date();
-                anioActual = fechaActual.getFullYear();
-                mesActualIndex = fechaActual.getMonth();
-                claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
-                if (!historialMeses[claveMesActual]) historialMeses[claveMesActual] = [];
+            const fechaActual = new Date();
+            mesActualIndex = fechaActual.getMonth();
+            anioActual = fechaActual.getFullYear();
+            claveMesActual = obtenerClaveMes(anioActual, mesActualIndex);
+            
+            if (!historialMeses[claveMesActual]) {
+                historialMeses[claveMesActual] = [];
             }
+
             cargarDatosMesActual();
             guardarDatos();
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1041,7 +1291,7 @@
 
             const copia = JSON.parse(JSON.stringify(historialMeses[claveOrigen]));
             if (reiniciarPagado) {
-                copia.forEach(d => d.pagado = false);
+                copia.forEach(d => { d.pagado = false; d.abonos = []; });
             }
 
             datosDeudores = copia;
@@ -1179,6 +1429,7 @@
                 claveMesActual = "2026-09";
             }
 
+            estadoBase = JSON.stringify(historialMeses);
             cargarDatosMesActual();
         }
 
@@ -1202,7 +1453,15 @@
                     return;
                 }
 
-                if (data && data.payload) {
+                const usarLocal = localStorage.getItem('deudores_v8_pendiente') === '1';
+                if (usarLocal) {
+                    historialMeses = JSON.parse(localStorage.getItem('deudores_v8_historial') || '{}');
+                    claveMesActual = localStorage.getItem('deudores_v8_clave_actual') || claveMesActual;
+                    const pp = claveMesActual.split('-');
+                    anioActual = parseInt(pp[0]);
+                    mesActualIndex = parseInt(pp[1]) - 1;
+                    await subirNube();
+                } else if (data && data.payload) {
                     isSyncingFromCloud = true;
                     historialMeses = data.payload.historialMeses || {};
                     if (data.payload.claveMesActual) {
@@ -1217,13 +1476,14 @@
                     await guardarDatosSupabase();
                 }
 
+                estadoBase = JSON.stringify(historialMeses);
                 cargarDatosMesActual();
                 actualizarBadgeNube("sincronizado", "Sincronizado");
 
                 supabaseClient
                     .channel('public:app_data')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_data', filter: 'id=eq.historial_principal' }, payload => {
-                        if (!isSyncingFromCloud && payload.new && payload.new.payload) {
+                        if (!isSyncingFromCloud && !hayCambiosPendientes() && payload.new && payload.new.payload) {
                             isSyncingFromCloud = true;
                             historialMeses = payload.new.payload.historialMeses || historialMeses;
                             if (payload.new.payload.claveMesActual) {
@@ -1232,6 +1492,7 @@
                                 anioActual = parseInt(partes[0]);
                                 mesActualIndex = parseInt(partes[1]) - 1;
                             }
+                            estadoBase = JSON.stringify(historialMeses);
                             cargarDatosMesActual();
                             isSyncingFromCloud = false;
                         }
@@ -1245,6 +1506,8 @@
             }
         }
 
+        let timerNube = null;
+
         async function guardarDatosSupabase() {
             try {
                 historialMeses[claveMesActual] = datosDeudores;
@@ -1256,7 +1519,13 @@
 
             if (!supabaseClient || isSyncingFromCloud) return;
             actualizarBadgeNube("sincronizando", "Guardando...");
+            localStorage.setItem('deudores_v8_pendiente', '1');
+            clearTimeout(timerNube);
+            timerNube = setTimeout(subirNube, 400);
+        }
 
+        async function subirNube() {
+            if (!supabaseClient) return;
             try {
                 isSyncingFromCloud = true;
                 const payloadData = {
@@ -1272,8 +1541,10 @@
                 if (error) {
                     console.error("Error guardando en Supabase:", error);
                     actualizarBadgeNube("offline", "Error Supabase");
+                    if (timerNube === null) timerNube = setTimeout(subirNube, 5000);
                 } else {
                     actualizarBadgeNube("sincronizado", "Sincronizado");
+                    if (timerNube === null) localStorage.removeItem('deudores_v8_pendiente');
                 }
                 isSyncingFromCloud = false;
             } catch (err) {
@@ -1297,6 +1568,7 @@
 
         function guardarDatos() {
             historialMeses[claveMesActual] = datosDeudores;
+            registrarCambioUndo();
             guardarDatosSupabase();
             renderizar();
         }
@@ -1351,6 +1623,13 @@
             toggleBotonBorrarBusqueda();
             renderizar();
             if (input) input.focus();
+        }
+
+        window.focusBusqueda = function() {
+            const input = document.getElementById('inputBuscar');
+            if (input) {
+                input.focus();
+            }
         }
 
         window.exportarRespaldoJSON = function() {
@@ -1438,7 +1717,7 @@
 
             texto += `*TOTAL GENERAL MES: $${totalGeneral.toLocaleString('es-CL')}*`;
 
-            copiarAlPortapapeles(texto, "Resumen general copiado para WhatsApp");
+            copiarAlPortapapeles(texto, "¡Resumen mensual copiado!");
         }
 
         window.exportarWhatsAppDeudor = function(deudorId) {
@@ -1503,22 +1782,26 @@
             mostrarToast(mensajeExito);
         }
 
-        function mostrarToast(mensaje) {
+        function mostrarToast(mensaje, opciones) {
             const toast = document.getElementById('toastNotificacion');
             const toastMensaje = document.getElementById('toastMensaje');
+            const btn = document.getElementById('btnDeshacer');
             if (!toast || !toastMensaje) return;
-            
+
             toastMensaje.innerText = mensaje;
-            
+            const conDeshacer = (opciones && 'deshacer' in opciones ? opciones.deshacer : (Date.now() - tsCambioUndo < 6000)) && pilaDeshacer.length > 0;
+            if (btn) btn.classList.toggle('hidden', !conDeshacer);
+            toast.classList.toggle('pointer-events-auto', conDeshacer);
+
             toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
             toast.classList.add('translate-y-0', 'opacity-100');
 
             if (toastTimeout) clearTimeout(toastTimeout);
-
             toastTimeout = setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-            }, 3000);
+                toast.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+                if (btn) btn.classList.add('hidden');
+            }, conDeshacer ? 6000 : 2500);
         }
 
         window.exportarPDF = function() {
@@ -1642,89 +1925,767 @@
                 e.target.classList.remove('flex');
             }
         });
-        window.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal-overlay').forEach(m => {
-                    m.classList.add('hidden');
-                    m.classList.remove('flex');
-                });
-            }
-        });
-
-        // El botón flotante fue eliminado; las acciones quedan disponibles en la barra inferior.
-        window.abrirMenuFlotanteAcciones = function() {
-            const panel = document.getElementById('menuFlotanteAcciones');
-            if (!panel) return;
-            // El mismo botón abre el menú si está cerrado y lo oculta si ya está abierto.
-            if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                panel.setAttribute('aria-hidden', 'false');
-            } else {
-                panel.classList.add('hidden');
-                panel.setAttribute('aria-hidden', 'true');
-            }
-        };
-        window.cerrarMenuFlotanteAcciones = function() {
-            const panel = document.getElementById('menuFlotanteAcciones');
-            if (!panel) return;
-            panel.classList.add('hidden');
-            panel.setAttribute('aria-hidden', 'true');
-        };
-        window.buscarDesdeMenuFlotante = function() {
-            cerrarMenuFlotanteAcciones();
-            irABusquedaDesdeBarra();
-        };
-        window.irABusquedaDesdeBarra = function() {
-            cerrarMenuFlotanteAcciones();
-            const herramientas = document.getElementById('herramientasBusqueda');
-            const input = document.getElementById('inputBuscar');
-            if (herramientas) {
-                const y = herramientas.getBoundingClientRect().top + window.scrollY - 12;
-                window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-            }
-            if (input) {
-                setTimeout(() => { input.focus({ preventScroll: true }); }, 350);
-            }
-        };
-        window.cambiarMesAnteriorYSubir = function() {
-            cambiarMesRapido(-1);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-        document.addEventListener('click', e => {
-            const panel = document.getElementById('menuFlotanteAcciones');
-            const botonOpciones = document.querySelector('#barraInferiorNavegacion button[title="Abrir todas las opciones"]');
-            if (panel && !panel.contains(e.target) && botonOpciones && !botonOpciones.contains(e.target)) cerrarMenuFlotanteAcciones();
-        });
-        // Cierra el selector de mes al elegir otra función, pero permite que su propio botón lo abra/cierre.
-        document.addEventListener('click', e => {
-            const modalMes = document.getElementById('modalSeleccionarMes');
-            if (!modalMes || modalMes.classList.contains('hidden')) return;
-            const abreSelector = e.target.closest('[onclick*="abrirModalSeleccionarMes"]');
-            if (!modalMes.contains(e.target) && !abreSelector) cerrarModalSeleccionarMes();
-        });
 
         window.onload = function() {
             initSupabase();
         };
     </script>
 
-    <!-- Barra inferior estilo WhatsApp: accesos rápidos principales -->
-    <nav id="barraInferiorNavegacion" class="fixed bottom-0 inset-x-0 z-[60] border-t border-slate-700 bg-slate-950/95 backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.28)]" style="padding-bottom: max(env(safe-area-inset-bottom), 6px);" aria-label="Navegación rápida">
-        <div class="max-w-3xl mx-auto grid grid-cols-4 gap-1 px-2 pt-2">
-            <button type="button" onclick="irAMesActual()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Ir al último mes con datos y volver al principio">
-                <i class="fa-solid fa-house text-lg text-purple-300"></i><span class="text-[10px] font-semibold">Inicio</span>
-            </button>
-            <button type="button" onclick="irABusquedaDesdeBarra()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Buscar deudores">
-                <i class="fa-solid fa-magnifying-glass text-lg text-sky-300"></i><span class="text-[10px] font-semibold">Buscar</span>
-            </button>
-            <button type="button" onclick="abrirModalSeleccionarMes()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Elegir mes y año">
-                <i class="fa-solid fa-calendar-days text-lg text-emerald-300"></i><span class="text-[10px] font-semibold">Elegir mes</span>
-            </button>
-            <button type="button" onclick="abrirMenuFlotanteAcciones()" class="flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-slate-300 hover:bg-slate-800 active:bg-slate-700 transition" title="Abrir todas las opciones">
-                <i class="fa-solid fa-grip text-lg text-amber-300"></i><span class="text-[10px] font-semibold">Opciones</span>
-            </button>
-        </div>
-    </nav>
+    <script>
+        (function () {
+            const $ = id => document.getElementById(id);
+            const sheet = $('menuSheet'), overlay = $('menuSheetOverlay'), fab = $('dockFab');
+            const dockTabs = document.querySelectorAll('#dockNav .dock-item[data-tab]');
+            const inp = $('inputBuscar');
+            let tabActual = 'inicio';
 
+            function setActivo(tab) {
+                if (tab === tabActual) return;
+                tabActual = tab;
+                dockTabs.forEach(b => b.classList.toggle('is-active', b.dataset.tab === tab));
+            }
+
+            window.abrirMenuAcciones = function () {
+                const _selMes = document.getElementById('modalSeleccionarMes'); if (_selMes && !_selMes.classList.contains('hidden')) cerrarModalSeleccionarMes();
+                sheet.classList.add('is-open');
+                sheet.setAttribute('aria-hidden', 'false');
+                overlay.classList.add('is-open');
+                fab.classList.add('is-open');
+                fab.setAttribute('aria-expanded', 'true');
+                if (navigator.vibrate) navigator.vibrate(8);
+            };
+            window.cerrarMenuAcciones = function () {
+                const _selMes = document.getElementById('modalSeleccionarMes'); if (_selMes && !_selMes.classList.contains('hidden')) cerrarModalSeleccionarMes();
+                sheet.classList.remove('is-open');
+                sheet.setAttribute('aria-hidden', 'true');
+                overlay.classList.remove('is-open');
+                fab.classList.remove('is-open');
+                fab.setAttribute('aria-expanded', 'false');
+            };
+            window.alternarMenuAcciones = function () {
+                sheet.classList.contains('is-open') ? cerrarMenuAcciones() : abrirMenuAcciones();
+            };
+            window.accionMenu = function (fn) {
+                cerrarMenuAcciones();
+                setTimeout(fn, 160);
+            };
+
+            window.navInicio = function () {
+                cerrarMenuAcciones();
+                setActivo('inicio');
+                irAUltimoMesConDatos();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            window.navBuscar = function () {
+                cerrarMenuAcciones();
+                setActivo('buscar');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (typeof focusBusqueda === 'function') focusBusqueda();
+            };
+            window.copiarGeneral = function () {
+                cerrarMenuAcciones();
+                const b = document.querySelector('.dock-copy');
+                b.classList.remove('is-pulse'); void b.offsetWidth; b.classList.add('is-pulse');
+                exportarResumenWhatsApp();
+            };
+            window.navMeses = function () {
+                const modal = document.getElementById('modalSeleccionarMes');
+                if (!modal.classList.contains('hidden')) { cerrarModalSeleccionarMes(); return; }
+                cerrarMenuAcciones();
+                abrirModalSeleccionarMes();
+            };
+
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarMenuAcciones(); });
+
+            if (inp) {
+                inp.addEventListener('focus', () => setActivo('buscar'));
+                inp.addEventListener('blur', () => { if (!inp.value.trim()) setActivo('inicio'); });
+            }
+
+            // Scroll: una lectura por frame como máximo
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => {
+                    ticking = false;
+                    const enBusqueda = inp && (inp.value.trim() || document.activeElement === inp);
+                    if (!enBusqueda && window.scrollY < 40) setActivo('inicio');
+                });
+            }, { passive: true });
+        })();
+
+        // ===== Búsqueda con debounce =====
+        window.programarRenderBusqueda = (function () {
+            let t = null;
+            return function () {
+                clearTimeout(t);
+                t = setTimeout(() => renderizar(), 150);
+            };
+        })();
+
+        // ===== Último mes con datos =====
+        window.irAUltimoMesConDatos = function () {
+            const claves = Object.keys(historialMeses)
+                .filter(k => Array.isArray(historialMeses[k]) && historialMeses[k].length > 0)
+                .sort();
+            if (claves.length === 0) { irAMesActual(); return; }
+            const k = claves[claves.length - 1];
+            if (k === claveMesActual) return;
+            const [y, m] = k.split('-').map(Number);
+            anioActual = y;
+            mesActualIndex = m - 1;
+            claveMesActual = k;
+            cargarDatosMesActual();
+            guardarDatos();
+        };
+
+        // ===== Resumen, insignia y franja de meses =====
+        function subtotalDe(d) {
+            let sub = 0;
+            for (const i of d.items) {
+                const cero = i.cuotaAct === 0;
+                const comp = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+                if (!cero && !comp) sub += i.monto;
+            }
+            return sub;
+        }
+        function esCuentaContada(i) {
+            const cero = i.cuotaAct === 0;
+            const comp = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
+            return !cero && !comp;
+        }
+        function cobradoDe(d) {
+            if (d.pagado) return subtotalDe(d);
+            if (!d.modoCuentas) return 0;
+            let c = 0;
+            for (const i of d.items) if (esCuentaContada(i) && i.pagado) c += i.monto;
+            return c;
+        }
+        function totalAbonado(d) {
+            return 0; // Abonos eliminados: no se suman en ningún cálculo
+        }
+        function calcularResumenDeLista(lista) {
+            let cobrado = 0, pendiente = 0, total = 0, numPend = 0;
+            for (const d of lista) {
+                const sub = subtotalDe(d);
+                const cob = cobradoDe(d);
+                const pend = sub - cob;
+                total += sub; cobrado += cob; pendiente += pend;
+                if (!d.pagado && pend > 0) numPend++;
+            }
+            return { cobrado, pendiente, total, numPend };
+        }
+        function calcularResumenMes() {
+            return calcularResumenDeLista(datosDeudores);
+        }
+
+        let franjaConstruida = false;
+        let mesFranjaMostrado = -1;
+
+        function construirFranja() {
+            const franja = document.getElementById('franjaMeses');
+            if (!franja || franjaConstruida) return;
+            franja.innerHTML = MESES_CORTOS.map((m, idx) =>
+                `<button data-mes="${idx}" class="franja-mes">${m}</button>`).join('');
+            franja.addEventListener('click', e => {
+                const b = e.target.closest('[data-mes]');
+                if (b) irAMesDesdeFranja(Number(b.dataset.mes));
+            });
+            franjaConstruida = true;
+        }
+
+        function actualizarFranja() {
+            construirFranja();
+            const franja = document.getElementById('franjaMeses');
+            if (!franja || mesFranjaMostrado === mesActualIndex) return;
+            mesFranjaMostrado = mesActualIndex;
+            franja.querySelectorAll('.franja-mes').forEach((b, i) =>
+                b.classList.toggle('is-actual', i === mesActualIndex));
+            const act = franja.querySelector('.is-actual');
+            if (act) franja.scrollTo({ left: act.offsetLeft - franja.clientWidth / 2 + act.clientWidth / 2, behavior: 'smooth' });
+        }
+
+        function actualizarBarraMarcado() {
+            const total = datosDeudores.length;
+            const marcados = datosDeudores.filter(d => d.pagado).length;
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            set('cntMarcados', marcados);
+            set('cntDesmarcados', total - marcados);
+        }
+
+        window.marcarTodos = function (valor) {
+            if (datosDeudores.length === 0) { mostrarToast('No hay deudores en este mes'); return; }
+            datosDeudores.forEach(d => d.pagado = valor);
+            guardarDatos();
+            mostrarToast(valor ? 'Todos marcados como pagados' : 'Todos desmarcados');
+        };
+
+        function actualizarResumenUI() {
+            actualizarBarraMarcado();
+            const r = calcularResumenMes();
+            const pct = r.total > 0 ? Math.round((r.cobrado / r.total) * 100) : 0;
+
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            set('resumenPendiente', formatearMoneda(r.pendiente));
+            set('resumenCobrado', formatearMoneda(r.cobrado));
+            set('resumenTotal', formatearMoneda(r.total));
+            set('resumenNumPend', r.numPend);
+            set('resumenPorcentaje', pct + '% cobrado');
+            const barra = document.getElementById('resumenBarra');
+            if (barra) barra.style.width = pct + '%';
+
+            actualizarFranja();
+        }
+
+        window.irAMesDesdeFranja = function (idx) {
+            anioSeleccionModal = anioActual;
+            seleccionarMesDesdeModal(idx);
+        };
+
+        // Un solo punto de render: renderizar() ya actualiza el resumen
+        const _renderizarBase = renderizar;
+        renderizar = function () {
+            _renderizarBase();
+            actualizarResumenUI();
+        };
+    </script>
+
+    <script>
+        // ===== Utilidades =====
+        const $m = id => document.getElementById(id);
+        const fmt = n => formatearMoneda(n);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const normNombre = s => String(s || '').trim().toLowerCase();
+        let abonoDeudorId = null;
+        let estAnio = 2026;
+
+        function mostrarMod(id) { const m = $m(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+        function ocultarMod(id) { const m = $m(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+        // ===== Modales inyectados =====
+        function shellModal(id, cerrar, titulo, cuerpo) {
+            return `<div id="${id}" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50" onclick="if(event.target===this)${cerrar}()">
+                <div class="modal-content animate-modal bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-4 shadow-2xl">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 id="${id}Titulo" class="text-sm font-bold text-slate-100">${titulo}</h3>
+                        <button onclick="${cerrar}()" class="text-slate-400 hover:text-white p-1" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    ${cuerpo}
+                </div>
+            </div>`;
+        }
+        document.body.insertAdjacentHTML('beforeend',
+            shellModal('modalHistorial', 'cerrarHistorial', 'Historial', `<div id="histBody" class="text-xs"></div>`) +
+            shellModal('modalEstadisticas', 'cerrarEstadisticas', 'Estadísticas de cobro', `
+                <div class="grid grid-cols-3 gap-1 p-1 mb-3 bg-slate-900 rounded-xl border border-slate-700/60">
+                    <button onclick="setTabEst('anio')" data-tab-est="anio" class="tab-est is-on">Año</button>
+                    <button onclick="setTabEst('mes')" data-tab-est="mes" class="tab-est">Mes actual</button>
+                    <button onclick="setTabEst('pend')" data-tab-est="pend" class="tab-est">Por terminar</button>
+                </div>
+
+                <div id="estTabAnio">
+                    <div class="flex items-center justify-between mb-2">
+                        <button onclick="cambiarAnioEst(-1)" class="btn-mini" aria-label="Año anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span id="estAnioLbl" class="text-xs font-mono font-bold text-slate-200"></span>
+                        <button onclick="cambiarAnioEst(1)" class="btn-mini" aria-label="Año siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <div class="flex gap-3 text-[10px] text-slate-400 mb-2">
+                        <span><i class="fa-solid fa-square text-emerald-500"></i> Cobrado</span>
+                        <span><i class="fa-solid fa-square text-purple-500"></i> Pendiente</span>
+                    </div>
+                    <div id="estBarras" class="flex items-end gap-1.5 border-b border-slate-700 pb-1"></div>
+                    <div id="estResumenAnio" class="grid grid-cols-2 gap-2 mt-3 text-center"></div>
+                    <h4 class="text-xs font-semibold text-slate-200 mt-4 mb-1">Resumen del año</h4>
+                    <div id="estAnioExtra" class="text-xs"></div>
+                </div>
+
+                <div id="estTabMes" class="hidden">
+                    <h4 class="text-xs font-semibold text-slate-200 mb-1">Mes actual</h4>
+                    <div id="estMesActual" class="text-xs"></div>
+                    <h4 class="text-xs font-semibold text-slate-200 mt-4 mb-1">Top 5 saldos pendientes</h4>
+                    <div id="estTop" class="text-xs space-y-1"></div>
+                    <h4 class="text-xs font-semibold text-slate-200 mt-4 mb-1">Pagados este mes</h4>
+                    <div id="estPagados" class="text-xs space-y-1"></div>
+                </div>
+
+                <div id="estTabPend" class="hidden">
+                    <h4 class="text-xs font-semibold text-slate-200 mb-1">Cuentas que terminan pronto</h4>
+                    <p class="text-[10px] text-slate-500 mb-2">Del mes actual, con 1 cuota o menos por pagar. La app no guarda fechas de vencimiento.</p>
+                    <div id="estPorTerminar" class="text-xs space-y-1"></div>
+                </div>`)
+        );
+
+        // ===== 7. Recordatorio por WhatsApp =====
+        window.recordatorioWA = function (id) {
+            const d = datosDeudores.find(x => x.id === id);
+            if (!d) return;
+            const sub = subtotalDe(d), ab = cobradoDe(d);
+            const falta = sub - ab;
+            if (falta <= 0) { mostrarToast('No hay saldo pendiente'); return; }
+            const mes = `${MESES_NOMBRES[mesActualIndex]} ${anioActual}`;
+            let msg = `Hola *${d.nombre}*, te escribo por tu saldo de *${mes}*.\n`;
+            msg += `Total: ${fmt(sub)}\n`;
+            if (ab > 0) msg += `Ya pagado: ${fmt(ab)}\n`;
+            msg += `Pendiente: *${fmt(falta)}*\n\n¿Cuándo podrías hacer el pago? ¡Gracias!`;
+            window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+        };
+
+        // ===== 6. Historial por deudor =====
+        window.abrirHistorial = function (id) {
+            const d = datosDeudores.find(x => x.id === id);
+            if (!d) return;
+            const nombre = normNombre(d.nombre);
+            const filas = [];
+            let tCob = 0, tPend = 0;
+            Object.keys(historialMeses).sort().forEach(k => {
+                const lista = historialMeses[k];
+                if (!Array.isArray(lista)) return;
+                const m = lista.find(x => normNombre(x.nombre) === nombre);
+                if (!m) return;
+                const sub = subtotalDe(m);
+                const cob = cobradoDe(m);
+                const pend = sub - cob;
+                tCob += cob; tPend += pend;
+                const [y, mm] = k.split('-');
+                const est = sub === 0 ? 'Sin cargos' : pend === 0 ? 'Pagado' : cob > 0 ? 'Parcial' : 'Pendiente';
+                const color = est === 'Pagado' ? 'text-emerald-400' : est === 'Parcial' ? 'text-amber-300' : est === 'Pendiente' ? 'text-rose-300' : 'text-slate-500';
+                filas.push(`<div class="flex justify-between items-center py-1.5 border-b border-slate-700/50">
+                    <span class="text-slate-200 font-mono">${MESES_CORTOS[Number(mm) - 1]} ${y}</span>
+                    <span class="font-mono text-slate-300">${fmt(sub)}</span>
+                    <span class="${color} font-semibold w-20 text-right">${est}</span></div>`);
+            });
+            $m('modalHistorialTitulo').textContent = 'Historial · ' + d.nombre;
+            $m('histBody').innerHTML = (filas.length
+                ? filas.join('')
+                : '<p class="text-slate-500 italic py-2">Sin registros en otros meses.</p>') + `
+                <div class="grid grid-cols-2 gap-2 mt-3 text-center">
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Cobrado histórico</div><div class="font-mono text-xs font-bold text-emerald-400">${fmt(tCob)}</div></div>
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Pendiente histórico</div><div class="font-mono text-xs font-bold text-rose-300">${fmt(tPend)}</div></div>
+                </div>`;
+            mostrarMod('modalHistorial');
+        };
+        window.cerrarHistorial = function () { ocultarMod('modalHistorial'); };
+
+        // ===== 3 y 4. Estadísticas y cuentas por terminar =====
+        window.abrirEstadisticas = function () {
+            estAnio = anioActual;
+            setTabEst('anio');
+            renderEstadisticas();
+            mostrarMod('modalEstadisticas');
+        };
+        window.cerrarEstadisticas = function () { ocultarMod('modalEstadisticas'); };
+        window.setTabEst = function (t) {
+            const paneles = { anio: 'estTabAnio', mes: 'estTabMes', pend: 'estTabPend' };
+            Object.keys(paneles).forEach(k => {
+                document.getElementById(paneles[k]).classList.toggle('hidden', k !== t);
+            });
+            document.querySelectorAll('[data-tab-est]').forEach(b => b.classList.toggle('is-on', b.dataset.tabEst === t));
+        };
+        window.cambiarAnioEst = function (delta) { estAnio += delta; renderEstadisticas(); };
+
+        function renderEstadisticas() {
+            $m('estAnioLbl').textContent = estAnio;
+            const meses = MESES_CORTOS.map((m, idx) => {
+                const lista = historialMeses[obtenerClaveMes(estAnio, idx)];
+                const r = Array.isArray(lista) && lista.length ? calcularResumenDeLista(lista) : { cobrado: 0, pendiente: 0, total: 0 };
+                return { m, idx, ...r };
+            });
+            const max = Math.max(1, ...meses.map(x => x.total));
+            $m('estBarras').innerHTML = meses.map(x => {
+                const hC = (x.cobrado / max * 120).toFixed(1), hP = (x.pendiente / max * 120).toFixed(1);
+                const act = x.idx === mesActualIndex && estAnio === anioActual;
+                return `<div class="flex-1 min-w-0 flex flex-col items-center" title="${x.m}: cobrado ${fmt(x.cobrado)}, pendiente ${fmt(x.pendiente)}">
+                    <div style="height:120px" class="w-full flex flex-col justify-end rounded-t overflow-hidden">
+                        <div style="height:${hP}px" class="bg-purple-500/80"></div>
+                        <div style="height:${hC}px" class="bg-emerald-500"></div>
+                    </div>
+                    <span class="text-[9px] font-mono mt-1 ${act ? 'text-purple-300 font-bold' : 'text-slate-400'}">${x.m}</span>
+                </div>`;
+            }).join('');
+            const tc = meses.reduce((a, x) => a + x.cobrado, 0);
+            const tp = meses.reduce((a, x) => a + x.pendiente, 0);
+            $m('estResumenAnio').innerHTML = `
+                <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Cobrado ${estAnio}</div><div class="font-mono text-xs font-bold text-emerald-400">${fmt(tc)}</div></div>
+                <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Pendiente ${estAnio}</div><div class="font-mono text-xs font-bold text-purple-300">${fmt(tp)}</div></div>`;
+
+            // Mes actual
+            const rMes = calcularResumenMes();
+            const totalDeud = datosDeudores.length;
+            const pagados = datosDeudores.filter(d => d.pagado).length;
+            const pct = rMes.total > 0 ? Math.round(rMes.cobrado / rMes.total * 100) : 0;
+            $m('estMesActual').innerHTML = `
+                <div class="grid grid-cols-3 gap-2 text-center mb-2">
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Deudores</div><div class="font-mono text-xs font-bold text-slate-200">${totalDeud}</div></div>
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Pagados</div><div class="font-mono text-xs font-bold text-emerald-400">${pagados}</div></div>
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Pendientes</div><div class="font-mono text-xs font-bold text-rose-300">${totalDeud - pagados}</div></div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 h-1.5 rounded-full bg-slate-900 overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width:${pct}%"></div></div>
+                    <span class="text-[10px] font-mono text-slate-300">${pct}% cobrado</span>
+                </div>`;
+
+            // Pagados este mes
+            const listaPagados = datosDeudores
+                .filter(d => d.pagado)
+                .map(d => ({ nombre: d.nombre, monto: subtotalDe(d) }))
+                .sort((a, b) => b.monto - a.monto);
+            $m('estPagados').innerHTML = listaPagados.length
+                ? listaPagados.map(x => `<div class="flex justify-between items-center py-1.5 border-b border-slate-700/50">
+                    <span class="text-slate-200 truncate">${esc(x.nombre)}</span>
+                    <span class="font-mono text-emerald-400 shrink-0 ml-2">${fmt(x.monto)}</span></div>`).join('')
+                : '<p class="text-slate-500 italic py-2">Ningún deudor ha pagado este mes.</p>';
+
+            // Top 5 saldos pendientes
+            const top = datosDeudores
+                .filter(d => !d.pagado)
+                .map(d => ({ nombre: d.nombre, monto: subtotalDe(d) - cobradoDe(d) }))
+                .filter(x => x.monto > 0)
+                .sort((a, b) => b.monto - a.monto)
+                .slice(0, 5);
+            $m('estTop').innerHTML = top.length
+                ? top.map((x, i) => `<div class="flex justify-between items-center py-1.5 border-b border-slate-700/50">
+                    <span class="text-slate-200 truncate"><span class="text-slate-500 font-mono mr-1.5">${i + 1}.</span>${esc(x.nombre)}</span>
+                    <span class="font-mono text-rose-300 shrink-0 ml-2">${fmt(x.monto)}</span></div>`).join('')
+                : '<p class="text-slate-500 italic py-2">Nadie tiene saldo pendiente.</p>';
+
+            // Resumen del año
+            const conDatos = meses.filter(x => x.total > 0);
+            const promCobrado = conDatos.length ? Math.round(tc / conDatos.length) : 0;
+            const mejor = conDatos.length ? conDatos.reduce((a, b) => b.cobrado > a.cobrado ? b : a) : null;
+            const mayorPend = conDatos.length ? conDatos.reduce((a, b) => b.pendiente > a.pendiente ? b : a) : null;
+            $m('estAnioExtra').innerHTML = `<div class="space-y-1 text-slate-400">
+                <div class="flex justify-between"><span>Promedio cobrado por mes con datos</span><span class="font-mono text-slate-200">${fmt(promCobrado)}</span></div>
+                <div class="flex justify-between"><span>Mes con más cobro</span><span class="font-mono text-slate-200">${mejor && mejor.cobrado > 0 ? mejor.m + ' · ' + fmt(mejor.cobrado) : '—'}</span></div>
+                <div class="flex justify-between"><span>Mes con más pendiente</span><span class="font-mono text-slate-200">${mayorPend && mayorPend.pendiente > 0 ? mayorPend.m + ' · ' + fmt(mayorPend.pendiente) : '—'}</span></div>
+                <div class="flex justify-between"><span>Meses con datos</span><span class="font-mono text-slate-200">${conDatos.length}</span></div>
+            </div>`;
+
+            const porTerminar = [];
+            datosDeudores.forEach(d => {
+                if (d.pagado) return;
+                d.items.forEach(i => {
+                    const act = i.cuotaAct || 0, tot = i.cuotaTot || 0;
+                    if (!tot || act <= 0 || act > tot) return;
+                    const quedan = tot - act;
+                    if (quedan > 1) return;
+                    porTerminar.push(`<div class="flex justify-between items-center py-1.5 border-b border-slate-700/50">
+                        <span class="text-slate-200 truncate">${esc(d.nombre)} · ${esc(i.concepto)}</span>
+                        <span class="font-mono text-slate-300 shrink-0 ml-2">${act}/${tot} ${quedan === 0
+                            ? '<span class="text-emerald-400">última</span>'
+                            : '<span class="text-amber-300">queda 1</span>'}</span></div>`);
+                });
+            });
+            $m('estPorTerminar').innerHTML = porTerminar.length
+                ? porTerminar.join('')
+                : '<p class="text-slate-500 italic py-2">Ninguna cuenta termina este mes.</p>';
+        }
+
+        // ===== 5. Exportar CSV (Excel) =====
+        window.exportarCSV = function () {
+            const filas = [['Deudor', 'Concepto', 'Monto', 'Cuota', 'Estado']];
+            datosDeudores.forEach(d => {
+                const est = d.pagado ? 'Pagado' : 'Pendiente';
+                if (d.items.length === 0) filas.push([d.nombre, '', '', '', est]);
+                d.items.forEach(i => {
+                    filas.push([d.nombre, i.concepto, i.monto, i.cuotaTot ? `${i.cuotaAct || 0}/${i.cuotaTot}` : '', est]);
+                });
+            });
+            // Separador ";" para que Excel en configuración en español lo abra en columnas
+            const csv = filas.map(r => r.map(v => {
+                const t = String(v ?? '');
+                return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+            }).join(';')).join('\r\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `deudores_${claveMesActual}.csv`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            mostrarToast('CSV descargado');
+        };
+
+        // ===== 8. Modo claro / oscuro =====
+        window.toggleTema = function () {
+            const claro = document.documentElement.classList.toggle('modo-claro');
+            localStorage.setItem('deudores_tema', claro ? 'claro' : 'oscuro');
+            mostrarToast(claro ? 'Modo claro activado' : 'Modo oscuro activado');
+        };
+
+        // Cerrar modales con Escape
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            ['modalHistorial', 'modalEstadisticas'].forEach(ocultarMod);
+        });
+    </script>
+
+    <script>
+        // ===== Deshacer =====
+        const pilaDeshacer = [];
+        let estadoBase = null;
+        let deshaciendo = false;
+        let tsCambioUndo = 0;
+        const MAX_DESHACER = 30;
+
+        function registrarCambioUndo() {
+            const actual = JSON.stringify(historialMeses);
+            if (estadoBase !== null && actual !== estadoBase && !deshaciendo) {
+                pilaDeshacer.push(estadoBase);
+                if (pilaDeshacer.length > MAX_DESHACER) pilaDeshacer.shift();
+                tsCambioUndo = Date.now();
+                if (!window.silencioUndoToast) mostrarToast('Cambio guardado', { deshacer: true });
+            }
+            estadoBase = actual;
+        }
+
+        window.deshacerUltimo = function () {
+            if (pilaDeshacer.length === 0) { mostrarToast('No hay nada que deshacer', { deshacer: false }); return; }
+            const previo = pilaDeshacer.pop();
+            historialMeses = JSON.parse(previo);
+            deshaciendo = true;
+            cargarDatosMesActual();
+            guardarDatos();
+            deshaciendo = false;
+            estadoBase = JSON.stringify(historialMeses);
+            tsCambioUndo = 0;
+            mostrarToast('Cambio deshecho', { deshacer: false });
+        };
+
+        // Ctrl+Z / Cmd+Z (fuera de campos de texto)
+        document.addEventListener('keydown', e => {
+            if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            e.preventDefault();
+            deshacerUltimo();
+        });
+    </script>
+
+    <script>
+        // ===== Panel de opciones del encabezado =====
+        function setOpciones(abrir) {
+            const panel = document.getElementById('panelOpciones');
+            const btn = document.getElementById('btnOpciones');
+            if (!panel || !btn) return;
+            panel.classList.toggle('opciones-cerrado', !abrir);
+            btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        }
+        function opcionesAbiertas() {
+            const panel = document.getElementById('panelOpciones');
+            return !!panel && !panel.classList.contains('opciones-cerrado');
+        }
+        window.toggleOpciones = function (e) {
+            if (e) e.stopPropagation();
+            setOpciones(!opcionesAbiertas());
+        };
+        // Tocar en cualquier otro lugar cierra el panel
+        document.addEventListener('click', e => {
+            if (!opcionesAbiertas()) return;
+            if (Date.now() < (window.ignorarToquesHasta || 0)) return;
+            const panel = document.getElementById('panelOpciones');
+            const btn = document.getElementById('btnOpciones');
+            if (panel.contains(e.target) || btn.contains(e.target)) return;
+            setOpciones(false);
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpciones(false); });
+    </script>
+
+    <script>
+        // ===== Sincronización segura: no perder cambios al recargar o cambiar rápido =====
+        function hayCambiosPendientes() {
+            return timerNube !== null || localStorage.getItem('deudores_v8_pendiente') === '1';
+        }
+        function subirAhora() {
+            if (timerNube !== null) {
+                clearTimeout(timerNube);
+                timerNube = null;
+                subirNube();
+            }
+        }
+        // Al cambiar de pestaña, minimizar o cerrar: subir lo pendiente de inmediato
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') subirAhora();
+        });
+        window.addEventListener('pagehide', subirAhora);
+    </script>
+
+    <script>
+        // ===== Deslizar para cambiar de pestaña en Estadísticas =====
+        (function () {
+            const ORDEN = ['anio', 'mes', 'pend'];
+            const modal = document.getElementById('modalEstadisticas');
+            if (!modal) return;
+            let x0 = null, y0 = null;
+            modal.addEventListener('touchstart', e => {
+                x0 = e.touches[0].clientX;
+                y0 = e.touches[0].clientY;
+            }, { passive: true });
+            modal.addEventListener('touchend', e => {
+                if (x0 === null) return;
+                const dx = e.changedTouches[0].clientX - x0;
+                const dy = e.changedTouches[0].clientY - y0;
+                x0 = null;
+                if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+                const actual = document.querySelector('[data-tab-est].is-on');
+                const idx = ORDEN.indexOf(actual ? actual.dataset.tabEst : 'anio');
+                const next = dx < 0 ? idx + 1 : idx - 1;
+                if (next < 0 || next >= ORDEN.length) return;
+                setTabEst(ORDEN[next]);
+            }, { passive: true });
+        })();
+    </script>
+
+    <script>
+        // ===== Deslizar para cambiar de mes =====
+        function animarCambioMes(dir) {
+            const cont = document.getElementById('contenedorDeudores');
+            if (!cont) return;
+            cont.classList.remove('mes-entra-der', 'mes-entra-izq');
+            void cont.offsetWidth; // reiniciar la animación
+            cont.classList.add(dir === 'der' ? 'mes-entra-der' : 'mes-entra-izq');
+        }
+        function cambiarMesPorGesto(delta) {
+            let idx = mesActualIndex + delta;
+            let anio = anioActual;
+            if (idx > 11) { idx = 0; anio++; }
+            if (idx < 0) { idx = 11; anio--; }
+            anioSeleccionModal = anio;
+            seleccionarMesDesdeModal(idx);
+            animarCambioMes(delta > 0 ? 'der' : 'izq');
+            window.ignorarToquesHasta = Date.now() + 500;
+            // La navegación no es un cambio de datos: no debe activar "Deshacer"
+            estadoBase = JSON.stringify(historialMeses);
+            mostrarToast(`${MESES_NOMBRES[idx]} ${anio}`, { deshacer: false });
+        }
+        (function () {
+            let x0 = null, y0 = null, t0 = 0, ignorar = false;
+            const hayModalAbierto = () =>
+                [...document.querySelectorAll('.modal-overlay')].some(m => !m.classList.contains('hidden'));
+            document.addEventListener('touchstart', e => {
+                const t = e.target;
+                ignorar = hayModalAbierto() ||
+                    !!t.closest('input, textarea, select, [contenteditable], .overflow-x-auto, #dockNav, #menuSheet, #menuSheetOverlay, #barraMarcado, #panelOpciones, #btnOpciones, #pillMes, header');
+                x0 = e.touches[0].clientX;
+                y0 = e.touches[0].clientY;
+                t0 = Date.now();
+            }, { passive: true });
+            document.addEventListener('touchend', e => {
+                if (ignorar || x0 === null) { x0 = null; return; }
+                const dx = e.changedTouches[0].clientX - x0;
+                const dy = e.changedTouches[0].clientY - y0;
+                x0 = null;
+                if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || Date.now() - t0 > 700) return;
+                cambiarMesPorGesto(dx < 0 ? 1 : -1);
+            }, { passive: true });
+        })();
+    </script>
+
+    <script>
+        // ===== 7. Resumen por concepto en la búsqueda =====
+        function actualizarResumenBusqueda() {
+            const el = document.getElementById('resumenBusqueda');
+            const inp = document.getElementById('inputBuscar');
+            if (!el || !inp) return;
+            const q = inp.value.toLowerCase().trim();
+            if (!q) { el.classList.add('hidden'); return; }
+            let n = 0, total = 0;
+            const nombres = new Set();
+            datosDeudores.forEach(d => d.items.forEach(i => {
+                if (i.concepto.toLowerCase().includes(q)) { n++; total += i.monto; nombres.add(d.nombre); }
+            }));
+            el.innerHTML = n === 0
+                ? `Ninguna cuenta con "${esc(q)}"`
+                : `<span class="font-semibold text-slate-200">${n}</span> cuentas de "${esc(q)}" · <span class="font-mono text-slate-200">${fmt(total)}</span> · ${nombres.size} deudor(es)`;
+            el.classList.remove('hidden');
+        }
+        const _renderBase3 = renderizar;
+        renderizar = function () {
+            _renderBase3();
+            actualizarResumenBusqueda();
+        };
+
+        // Limpieza: se quitó el registro de cambios
+        localStorage.removeItem('deudores_log');
+        const DIA = 864e5;
+
+        // ===== 6. Respaldo automático semanal + recordatorio =====
+        function snapshotSemanal() {
+            const ult = Number(localStorage.getItem('deudores_snap_ts') || 0);
+            if (Date.now() - ult < 7 * DIA) return;
+            try {
+                let snaps = [];
+                try { snaps = JSON.parse(localStorage.getItem('deudores_snapshots') || '[]'); } catch (e) {}
+                snaps.push({ ts: Date.now(), data: JSON.stringify(historialMeses) });
+                localStorage.setItem('deudores_snapshots', JSON.stringify(snaps.slice(-4)));
+                localStorage.setItem('deudores_snap_ts', String(Date.now()));
+            } catch (e) { console.warn('No se pudo guardar el respaldo automático', e); }
+        }
+        const _exportBase2 = window.exportarRespaldoJSON;
+        window.exportarRespaldoJSON = function () {
+            _exportBase2();
+            localStorage.setItem('deudores_ultimo_respaldo', String(Date.now()));
+        };
+        window.addEventListener('load', () => setTimeout(() => { snapshotSemanal(); }, 4000));
+    </script>
+
+
+    <script>
+        // ===== Checks silenciosos: marcar pagado no muestra el aviso =====
+        (function () {
+            const silenciar = fn => function (...args) {
+                window.silencioUndoToast = true;
+                try { return fn.apply(this, args); }
+                finally { window.silencioUndoToast = false; }
+            };
+            window.togglePagadoItem = silenciar(window.togglePagadoItem);
+            window.togglePagadoDeudor = silenciar(window.togglePagadoDeudor);
+            window.toggleModoCuentas = silenciar(window.toggleModoCuentas);
+        })();
+    </script>
+
+    <script>
+        // ===== Estado de Supabase también en la hoja de acciones (+) =====
+        function sincronizarEstadoSheet() {
+            const dot = document.getElementById('cloudDot');
+            const txt = document.getElementById('cloudText');
+            const sd = document.getElementById('sheetDot');
+            const st = document.getElementById('sheetNube');
+            if (!dot || !txt || !sd || !st) return;
+            sd.className = dot.className.replace('animate-pulse', '') + (dot.className.includes('animate-pulse') ? ' animate-pulse' : '') + ' w-2 h-2 rounded-full shrink-0';
+            st.textContent = 'Nube: ' + txt.innerText;
+        }
+        const _badgeBase2 = actualizarBadgeNube;
+        actualizarBadgeNube = function (estado, texto) {
+            _badgeBase2(estado, texto);
+            sincronizarEstadoSheet();
+        };
+        window.addEventListener('load', () => setTimeout(sincronizarEstadoSheet, 300));
+    </script>
+
+    <script>
+        // ===== Mes actual siempre visible =====
+        function actualizarPillMes() {
+            const el = document.getElementById('pillMes');
+            if (el) el.textContent = `${MESES_CORTOS[mesActualIndex]} ${anioActual}`.toUpperCase();
+        }
+        // Mostrar la etiqueta solo cuando ya no se ve el encabezado
+        (function () {
+            let ticking = false;
+            const actualizar = () => {
+                const el = document.getElementById('pillMes');
+                if (el) el.classList.toggle('hidden', window.scrollY < 120);
+                ticking = false;
+            };
+            window.addEventListener('scroll', () => {
+                if (!ticking) { ticking = true; requestAnimationFrame(actualizar); }
+            }, { passive: true });
+            window.addEventListener('load', actualizar);
+        })();
+        const _renderBase5 = renderizar;
+        renderizar = function () {
+            _renderBase5();
+            actualizarPillMes();
+        };
+    </script>
 </body>
 </html>
