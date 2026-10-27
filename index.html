@@ -76,8 +76,8 @@
         }
         .dock-item:active { transform: scale(0.9); }
         .dock-ico {
-            width: 46px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
-            font-size: 17px; transition: background .25s, transform .25s, color .25s;
+            width: 54px; height: 46px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 23px; transition: background .25s, transform .25s, color .25s;
         }
         .dock-label { font-size: 10px; font-weight: 600; letter-spacing: .01em; transition: color .2s; }
         .dock-item:hover { color: #cbd5e1; }
@@ -87,7 +87,7 @@
             100% { box-shadow: 0 0 0 16px rgba(34,197,94,0); }
         }
 
-        .dock-center { flex: 0 0 64px; height: 32px; margin-top: 8px; display: flex; align-items: center; justify-content: center; align-self: flex-start; }
+        .dock-center { flex: 0 0 64px; height: 46px; display: flex; align-items: center; justify-content: center; align-self: center; }
         .dock-fab {
             width: 46px; height: 46px; border-radius: 9999px; color: #fff; font-size: 18px;
             display: flex; align-items: center; justify-content: center;
@@ -189,6 +189,41 @@
         .modo-claro .franja-mes.is-actual { color:#ffffff; }
         .modo-claro ::-webkit-scrollbar-track { background:#e2e8f0; }
         .modo-claro ::-webkit-scrollbar-thumb { background:#94a3b8; }
+        /* ===== Animación al abrir y cerrar deudor ===== */
+        @keyframes detalleAbre { from { opacity: 0; transform: scaleY(.55); } to { opacity: 1; transform: scaleY(1); } }
+        @keyframes detalleCierra { from { opacity: 1; transform: scaleY(1); } to { opacity: 0; transform: scaleY(.55); } }
+        .detalle-abre { transform-origin: top center; animation: detalleAbre .3s cubic-bezier(.32,.72,0,1); }
+        .detalle-cierra { transform-origin: top center; animation: detalleCierra .08s ease-in forwards; }
+        @media (prefers-reduced-motion: reduce) { .detalle-abre, .detalle-cierra { animation: none; } }
+        /* ===== Buscador: texto siempre visible ===== */
+        #inputBuscar { color: #e2e8f0 !important; -webkit-text-fill-color: #e2e8f0; background-color: #0f172a !important; caret-color: #c084fc; }
+        .modo-claro #inputBuscar { color: #0f172a !important; -webkit-text-fill-color: #0f172a; background-color: #f8fafc !important; }
+        body.buscando #pillMes { display: none !important; }
+        /* Evita que el celular recargue la página al arrastrar hacia abajo */
+        html, body { overscroll-behavior-y: contain; }
+        html.bloqueo-scroll, body.bloqueo-scroll { overflow: hidden; }
+        /* Calendario de meses: misma animación que la hoja de acciones */
+        @keyframes calFondoEntra { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes calFondoSale { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes calSube { from { transform: translateY(105%); } to { transform: translateY(0); } }
+        @keyframes calBaja { from { transform: translateY(0); } to { transform: translateY(105%); } }
+        @keyframes hojaVaFab { from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(60%) scale(.15); opacity: 0; } }
+        #modalSeleccionarMes > div, #menuSheet > div { transform-origin: bottom center; }
+        #modalSeleccionarMes:not(.hidden) { animation: calFondoEntra .3s ease-out; }
+        #modalSeleccionarMes:not(.hidden) > div { animation: calSube .38s cubic-bezier(.32,.72,0,1); }
+        #modalSeleccionarMes.cerrando { animation: calFondoSale .3s ease-in forwards; }
+        @keyframes genioCierra {
+            0% { transform: translateY(0) scale(1, 1); clip-path: inset(0 0 0 0 round 24px); opacity: 1; }
+            35% { transform: translateY(12%) scale(.85, .8); clip-path: inset(0 12% 0 12% round 36px); opacity: 1; }
+            70% { transform: translateY(40%) scale(.35, .45); clip-path: inset(0 34% 0 34% round 48px); opacity: .8; }
+            100% { transform: translateY(70%) scale(.08, .12); clip-path: inset(0 46% 0 46% round 60px); opacity: 0; }
+        }
+        #menuSheet.cerrando > div { animation: genioCierra .42s cubic-bezier(.45,0,.7,.4) forwards; }
+        #modalSeleccionarMes.cerrando > div { animation: calBaja .3s cubic-bezier(.32,.72,0,1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+            #modalSeleccionarMes, #modalSeleccionarMes > div { animation: none !important; }
+        }
+        .modo-claro #modalSeleccionarMes { background-color: rgba(15, 23, 42, .6) !important; }
     </style>
     <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
 </head>
@@ -201,7 +236,7 @@
                 <div class="flex items-center gap-2.5 min-w-0 w-full sm:w-auto justify-between sm:justify-start">
                     <div class="flex items-center gap-2.5 min-w-0">
                         <div class="bg-purple-600/20 p-2 rounded-xl border border-purple-500/30 text-purple-400 shrink-0">
-                            <i class="fa-solid fa-calculator text-xl sm:text-2xl"></i>
+                            <i class="fa-solid fa-wallet text-xl sm:text-2xl"></i>
                         </div>
                         <div class="min-w-0">
                             <h1 class="text-sm sm:text-xl font-bold text-white flex items-center gap-1.5 sm:gap-2 leading-tight truncate">
@@ -288,15 +323,15 @@
     <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6">
 
         <div id="vistaDeudores" class="space-y-5">
-            <div class="flex flex-row justify-between items-center gap-2 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
-                <div class="relative flex-1 min-w-0 sm:w-72">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
+                <div class="relative w-full sm:flex-1 sm:w-72 min-w-0">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
                     <input type="text" id="inputBuscar" oninput="toggleBotonBorrarBusqueda(); programarRenderBusqueda();" placeholder="Buscar deudor o concepto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
                     <button id="btnLimpiarBusqueda" onclick="limpiarBusqueda()" class="hidden absolute right-2.5 top-2 text-slate-500 hover:text-white text-xs p-0.5">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="flex items-center gap-1.5 shrink-0">
+                <div class="flex items-center gap-1.5 w-full sm:w-auto sm:shrink-0">
                     <span class="text-xs text-slate-400 hidden sm:inline">Filtrar:</span>
                     <select id="filtroEstado" onchange="actualizarEstadoFiltro(); renderizar();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-purple-500 max-w-[145px] sm:max-w-none">
                         <option value="todos">Todos los registros</option>
@@ -345,7 +380,7 @@
     </main>
 
     <!-- MENÚ INFERIOR MEJORADO (DOCK FLOTANTE + HOJA DE ACCIONES) -->
-    <div id="menuSheetOverlay" onclick="cerrarMenuAcciones()" class="menu-overlay fixed inset-0 z-[41] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="menuSheetOverlay" onclick="cerrarMenuAnimado()" class="menu-overlay fixed inset-0 z-[41] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"></div>
 
     <section id="menuSheet" role="dialog" aria-label="Acciones rápidas" aria-hidden="true" class="menu-sheet fixed left-0 right-0 z-[42] px-3 pointer-events-none" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);">
         <div class="max-w-md mx-auto bg-slate-800/95 backdrop-blur-2xl border border-white/10 rounded-[28px] shadow-[0_-20px_60px_-10px_rgba(124,58,237,0.35)] px-4 pt-3 pb-4">
@@ -423,16 +458,14 @@
     </section>
 
     <nav id="dockNav" class="fixed bottom-0 left-0 right-0 z-[43] px-3 pointer-events-none" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);">
-        <div class="dock max-w-md mx-auto relative pointer-events-auto flex items-start justify-between bg-slate-800/65 backdrop-blur-2xl border border-white/10 rounded-[28px] px-2 pt-2 pb-2.5 shadow-[0_-4px_28px_-6px_rgba(168,85,247,0.4)]">
+        <div class="dock max-w-md mx-auto relative pointer-events-auto flex items-center justify-between bg-slate-800/65 backdrop-blur-2xl border border-white/10 rounded-[28px] px-2 py-2 shadow-[0_-4px_28px_-6px_rgba(168,85,247,0.4)]">
 
             <button data-tab="inicio" onclick="navInicio()" class="dock-item is-active" aria-label="Inicio">
                 <span class="dock-ico"><i class="fa-solid fa-house"></i></span>
-                <span class="dock-label">Inicio</span>
             </button>
 
             <button data-tab="buscar" onclick="navBuscar()" class="dock-item" aria-label="Buscar">
                 <span class="dock-ico"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <span class="dock-label">Buscar</span>
             </button>
 
             <div class="dock-center">
@@ -445,12 +478,10 @@
 
             <button data-tab="meses" onclick="navMeses()" class="dock-item" aria-label="Meses">
                 <span class="dock-ico"><i class="fa-solid fa-calendar-days"></i></span>
-                <span class="dock-label">Meses</span>
             </button>
 
             <button data-tab="copiar" onclick="copiarGeneral()" class="dock-item dock-copy" aria-label="Copiar resumen general">
                 <span class="dock-ico"><i class="fa-regular fa-copy"></i></span>
-                <span class="dock-label">Copiar</span>
             </button>
         </div>
     </nav>
@@ -594,8 +625,8 @@
     </div>
 
     <!-- MODAL SELECCIONAR MES -->
-    <div id="modalSeleccionarMes" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-end justify-center p-4 z-[42]" onclick="if(event.target===this)cerrarModalSeleccionarMes()">
-        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
+    <div id="modalSeleccionarMes" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-end justify-center p-4 z-[42]" onclick="if(event.target===this)cerrarModalSeleccionarMes()">
+        <div class="modal-content bg-slate-800/95 backdrop-blur-2xl border border-white/10 w-full max-w-sm rounded-[28px] p-5 shadow-[0_-20px_60px_-10px_rgba(124,58,237,0.35)] animate-modal">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700/80 pb-3">
                 <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-calendar-check text-purple-400"></i> Seleccionar Mes
@@ -746,18 +777,23 @@
         // Mantiene qué fichas están desplegadas mientras se actualiza la lista.
         window.deudoresAbiertos = window.deudoresAbiertos || new Set();
         window.toggleDetalleDeudor = function(id) {
-            // Solo puede quedar un deudor abierto a la vez.
+            if (window.cerrandoDetalle) return;
+            // Cerrar: animar la salida y luego re-renderizar
             if (window.deudoresAbiertos.has(id)) {
                 window.deudoresAbiertos.clear();
-            } else {
-                window.deudoresAbiertos.clear();
-                window.deudoresAbiertos.add(id);
+                renderizar();
+                return;
             }
+            // Abrir: solo puede quedar un deudor abierto a la vez
+            window.deudoresAbiertos.clear();
+            window.deudoresAbiertos.add(id);
+            window.ultimoToggle = id;
             renderizar();
+            setTimeout(() => { window.ultimoToggle = null; }, 400);
         };
 
         function renderizar() {
-            const busqueda = document.getElementById('inputBuscar').value.toLowerCase().trim();
+            const busqueda = normTxt(document.getElementById('inputBuscar').value).trim();
             const filtroEstado = document.getElementById('filtroEstado').value;
 
             const contenedor = document.getElementById('contenedorDeudores');
@@ -796,8 +832,8 @@
                     }
                 });
 
-                const coincideNombre = d.nombre.toLowerCase().includes(busqueda);
-                const coincideConcepto = d.items.some(it => it.concepto.toLowerCase().includes(busqueda));
+                const coincideNombre = normTxt(d.nombre).includes(busqueda);
+                const coincideConcepto = d.items.some(it => normTxt(it.concepto).includes(busqueda));
                 const coincideTexto = coincideNombre || coincideConcepto;
                 
                 const coincideEstadoDeudor = (filtroEstado !== 'pagados') || (filtroEstado === 'pagados' && d.pagado);
@@ -853,8 +889,8 @@
                         : '';
 
                     contenedor.innerHTML += `
-                        <div class="${window.deudoresAbiertos.has(d.id) ? 'bg-slate-800 border-purple-500 ring-1 ring-purple-500/40 shadow-purple-950/40' : 'bg-slate-800 border-slate-700/80'} border rounded-2xl p-3 shadow-lg flex flex-col justify-between transition-all duration-200">
-                            <button type="button" onclick="toggleDetalleDeudor('${d.id}')" aria-expanded="${window.deudoresAbiertos.has(d.id)}" class="w-full flex items-center justify-between gap-3 text-left rounded-xl px-2 py-2 transition ${window.deudoresAbiertos.has(d.id) ? 'bg-purple-950/40' : 'hover:bg-slate-700/50'}">
+                        <div class="${window.deudoresAbiertos.has(d.id) ? 'bg-slate-800 border-purple-500/35 ring-1 ring-purple-500/15 shadow-purple-950/20' : 'bg-slate-800 border-slate-700/80'} border rounded-2xl p-3 shadow-lg flex flex-col justify-between transition-all duration-200">
+                            <button type="button" onclick="toggleDetalleDeudor('${d.id}')" aria-expanded="${window.deudoresAbiertos.has(d.id)}" class="w-full flex items-center justify-between gap-3 text-left rounded-xl px-2 py-2 transition ${window.deudoresAbiertos.has(d.id) ? 'bg-slate-700/60' : 'hover:bg-slate-700/50'}">
                                 <span class="flex items-center gap-2 min-w-0">
                                     <i class="fa-solid fa-user text-purple-300 text-sm shrink-0"></i>
                                     <span class="font-black text-sm uppercase tracking-wide truncate text-white">${nombreResaltado}</span>
@@ -862,7 +898,7 @@
                                 </span>
                                 <i class="fa-solid ${window.deudoresAbiertos.has(d.id) ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400 text-xs shrink-0"></i>
                             </button>
-                            <div id="detalleDeudor-${d.id}" class="${window.deudoresAbiertos.has(d.id) ? '' : 'hidden'} pt-2">
+                            <div id="detalleDeudor-${d.id}" class="${window.deudoresAbiertos.has(d.id) ? '' : 'hidden'} ${window.deudoresAbiertos.has(d.id) && window.ultimoToggle === d.id ? 'detalle-abre' : ''} pt-2">
                             <div>
                                 <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-700/80">
                                     <div class="flex items-center gap-2.5 min-w-0">
@@ -1578,9 +1614,21 @@
             return '$' + Math.round(monto).toLocaleString('es-CL');
         }
 
+        // Quita acentos y pasa a minúscula (para comparar sin importar mayúsculas ni tildes)
+        function normTxt(t) {
+            return String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+        // Patrón que encuentra la letra con o sin tilde, en cualquier mayúscula
+        const CLASES_ACENTO = { a: 'aáàâäã', e: 'eéèêë', i: 'iíìîï', o: 'oóòôöõ', u: 'uúùûü', n: 'nñ', c: 'cç' };
+        function patronSinAcentos(consulta) {
+            return [...normTxt(consulta)].map(ch => {
+                if (CLASES_ACENTO[ch]) return `[${CLASES_ACENTO[ch]}]`;
+                return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }).join('');
+        }
         function resaltarTexto(texto, consulta) {
             if (!consulta || consulta.trim() === '') return texto;
-            const regex = new RegExp(`(${consulta.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const regex = new RegExp(`(${patronSinAcentos(consulta.trim())})`, 'gi');
             return texto.replace(regex, '<mark class="highlight">$1</mark>');
         }
 
@@ -1973,6 +2021,12 @@
             window.navInicio = function () {
                 cerrarMenuAcciones();
                 setActivo('inicio');
+                const inp = document.getElementById('inputBuscar');
+                if (inp && inp.value !== '') {
+                    inp.value = '';
+                    if (typeof toggleBotonBorrarBusqueda === 'function') toggleBotonBorrarBusqueda();
+                    renderizar();
+                }
                 irAUltimoMesConDatos();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
@@ -2586,12 +2640,12 @@
             const el = document.getElementById('resumenBusqueda');
             const inp = document.getElementById('inputBuscar');
             if (!el || !inp) return;
-            const q = inp.value.toLowerCase().trim();
+            const q = normTxt(inp.value).trim();
             if (!q) { el.classList.add('hidden'); return; }
             let n = 0, total = 0;
             const nombres = new Set();
             datosDeudores.forEach(d => d.items.forEach(i => {
-                if (i.concepto.toLowerCase().includes(q)) { n++; total += i.monto; nombres.add(d.nombre); }
+                if (normTxt(i.concepto).includes(q)) { n++; total += i.monto; nombres.add(d.nombre); }
             }));
             el.innerHTML = n === 0
                 ? `Ninguna cuenta con "${esc(q)}"`
@@ -2685,6 +2739,101 @@
         renderizar = function () {
             _renderBase5();
             actualizarPillMes();
+        };
+    </script>
+
+    <script>
+        // Mientras se escribe en el buscador, ocultar la etiqueta del mes
+        (function () {
+            const inp = document.getElementById('inputBuscar');
+            if (!inp) return;
+            inp.addEventListener('focus', () => document.body.classList.add('buscando'));
+            inp.addEventListener('blur', () => document.body.classList.remove('buscando'));
+        })();
+    </script>
+
+    <script>
+        // ===== Deslizar hacia abajo cierra ventanas, hoja de acciones y opciones =====
+        (function () {
+            let x0 = null, y0 = null, ignorar = false;
+            document.addEventListener('touchstart', e => {
+                const sc = e.target.closest('.overflow-y-auto, .overflow-auto');
+                ignorar = !!sc && sc.scrollTop > 0;
+                x0 = e.touches[0].clientX;
+                y0 = e.touches[0].clientY;
+            }, { passive: true });
+            document.addEventListener('touchend', e => {
+                if (y0 === null) return;
+                const dy = e.changedTouches[0].clientY - y0;
+                const dx = e.changedTouches[0].clientX - x0;
+                y0 = null;
+                if (ignorar || dy < 60 || Math.abs(dx) > dy / 1.5) return;
+
+                const cal = document.getElementById('modalSeleccionarMes');
+                if (cal && !cal.classList.contains('hidden') && typeof cerrarModalSeleccionarMes === 'function') cerrarModalSeleccionarMes();
+                document.querySelectorAll('.modal-overlay').forEach(m => {
+                    if (m.id === 'modalSeleccionarMes' || m.classList.contains('hidden')) return;
+                    m.classList.add('hidden');
+                    m.classList.remove('flex');
+                });
+                const sheet = document.getElementById('menuSheet');
+                if (sheet && sheet.classList.contains('is-open') && typeof cerrarMenuAnimado === 'function') cerrarMenuAnimado();
+                const panel = document.getElementById('panelOpciones');
+                if (panel && !panel.classList.contains('opciones-cerrado') && typeof setOpciones === 'function') setOpciones(false);
+            }, { passive: true });
+        })();
+    </script>
+
+    <script>
+        // Mientras haya una ventana o la hoja de acciones abierta, la página de fondo no se mueve
+        (function () {
+            const hayAbierto = () =>
+                [...document.querySelectorAll('.modal-overlay')].some(m => !m.classList.contains('hidden')) ||
+                (document.getElementById('menuSheet')?.classList.contains('is-open') ?? false);
+            const actualizar = () => {
+                const abierto = hayAbierto();
+                document.documentElement.classList.toggle('bloqueo-scroll', abierto);
+                document.body.classList.toggle('bloqueo-scroll', abierto);
+            };
+            new MutationObserver(actualizar).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+            actualizar();
+        })();
+    </script>
+
+    <script>
+        // Calendario de meses: animación de apertura y cierre (como la hoja de acciones)
+        (function () {
+            let tCal = null;
+            const abrirOriginal = window.abrirModalSeleccionarMes;
+            const cerrarOriginal = window.cerrarModalSeleccionarMes;
+            window.abrirModalSeleccionarMes = function () {
+                const m = document.getElementById('modalSeleccionarMes');
+                clearTimeout(tCal);
+                if (m) m.classList.remove('cerrando');
+                abrirOriginal();
+            };
+            window.cerrarModalSeleccionarMes = function () {
+                const m = document.getElementById('modalSeleccionarMes');
+                if (!m || m.classList.contains('hidden') || m.classList.contains('cerrando')) return;
+                m.classList.add('cerrando');
+                clearTimeout(tCal);
+                tCal = setTimeout(() => {
+                    m.classList.remove('cerrando');
+                    cerrarOriginal();
+                }, 300);
+            };
+        })();
+    </script>
+
+    <script>
+        // Cerrar la hoja con la misma animación al tocar + o al deslizar
+        window.cerrarMenuAnimado = function () {
+            cerrarMenuAcciones();
+        };
+        window.alternarMenuAcciones = function () {
+            const sheet = document.getElementById('menuSheet');
+            if (sheet && sheet.classList.contains('is-open')) cerrarMenuAcciones();
+            else abrirMenuAcciones();
         };
     </script>
 </body>
