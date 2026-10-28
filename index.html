@@ -224,6 +224,11 @@
             #modalSeleccionarMes, #modalSeleccionarMes > div { animation: none !important; }
         }
         .modo-claro #modalSeleccionarMes { background-color: rgba(15, 23, 42, .6) !important; }
+        /* Barra: el + queda exactamente al centro (Inicio, Buscar | + | Meses) */
+        #dockNav .dock { display: grid !important; grid-template-columns: 1fr 1fr 64px 1fr 1fr; align-items: center; justify-items: center; }
+        #dockNav .dock-center { grid-column: 3; }
+        #modalListaDeudores:not(.hidden) { animation: calFondoEntra .3s ease-out; }
+        #modalListaDeudores:not(.hidden) > div { animation: calSube .38s cubic-bezier(.32,.72,0,1); }
     </style>
     <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
 </head>
@@ -333,12 +338,8 @@
                 </div>
                 <div class="flex items-center gap-1.5 w-full sm:w-auto sm:shrink-0">
                     <span class="text-xs text-slate-400 hidden sm:inline">Filtrar:</span>
-                    <select id="filtroEstado" onchange="actualizarEstadoFiltro(); renderizar();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-purple-500 max-w-[145px] sm:max-w-none">
-                        <option value="todos">Todos los registros</option>
-                        <option value="activos">Cuotas Activas del Mes</option>
-                        <option value="cero">Cuotas 0/X (Futuras)</option>
-                        <option value="completadas">Cuotas Completadas</option>
-                        <option value="pagados">Deudores Pagados</option>
+                    <select id="filtroDeudor" onchange="cambiarFiltroDeudor();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-purple-500 max-w-[180px] sm:max-w-[240px]">
+                        <option value="todos">Todos los deudores</option>
                     </select>
 
                     <button id="btnLimpiarTodosFiltros" onclick="limpiarTodosFiltros()" class="hidden bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-sm" title="Restablecer todos los filtros y búsquedas">
@@ -429,9 +430,9 @@
                     <span class="menu-ico from-slate-500 to-slate-700"><i class="fa-solid fa-upload"></i></span>
                     <span>Cargar</span>
                 </button>
-                <button onclick="accionMenu(() => abrirModalConfigSupabase())" class="menu-tile">
-                    <span class="menu-ico from-violet-500 to-purple-700"><i class="fa-solid fa-cloud"></i></span>
-                    <span>Nube</span>
+                <button onclick="accionMenu(() => copiarGeneral())" class="menu-tile">
+                    <span class="menu-ico from-teal-500 to-cyan-700"><i class="fa-regular fa-copy"></i></span>
+                    <span>Copiar</span>
                 </button>
                 <button onclick="accionMenu(() => confirmarVaciarMesActual())" class="menu-tile">
                     <span class="menu-ico from-red-500 to-rose-700"><i class="fa-solid fa-trash-can"></i></span>
@@ -480,9 +481,10 @@
                 <span class="dock-ico"><i class="fa-solid fa-calendar-days"></i></span>
             </button>
 
-            <button data-tab="copiar" onclick="copiarGeneral()" class="dock-item dock-copy" aria-label="Copiar resumen general">
-                <span class="dock-ico"><i class="fa-regular fa-copy"></i></span>
+            <button data-tab="deudores" onclick="abrirListaDeudores()" class="dock-item" aria-label="Lista de deudores">
+                <span class="dock-ico"><i class="fa-solid fa-users"></i></span>
             </button>
+
         </div>
     </nav>
 
@@ -794,7 +796,9 @@
 
         function renderizar() {
             const busqueda = normTxt(document.getElementById('inputBuscar').value).trim();
-            const filtroEstado = document.getElementById('filtroEstado').value;
+            const filtroEstado = 'todos';
+            const filtroDeudorVal = (document.getElementById('filtroDeudor') || { value: 'todos' }).value;
+            llenarListaDeudores();
 
             const contenedor = document.getElementById('contenedorDeudores');
             const emptyState = document.getElementById('emptyState');
@@ -805,6 +809,7 @@
             let deudoresMostrados = 0;
 
             datosDeudores.forEach(d => {
+                if (filtroDeudorVal !== 'todos' && d.id !== filtroDeudorVal) return;
                 let subtotalDeudor = 0;
                 let itemsProcesados = [];
 
@@ -1636,18 +1641,46 @@
             toggleBotonBorrarBusqueda();
         }
 
+        function llenarListaDeudores() {
+            const sel = document.getElementById('filtroDeudor');
+            if (!sel) return;
+            const actual = sel.value;
+            const opciones = ['<option value="todos">Todos los deudores</option>'].concat(
+                [...datosDeudores]
+                    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+                    .map(d => `<option value="${d.id}">${esc(d.nombre)}</option>`)
+            );
+            sel.innerHTML = opciones.join('');
+            sel.value = [...sel.options].some(o => o.value === actual) ? actual : 'todos';
+        }
+
+        window.cambiarFiltroDeudor = function () {
+            const v = document.getElementById('filtroDeudor').value;
+            window.deudoresAbiertos.clear();
+            if (v !== 'todos') {
+                window.deudoresAbiertos.add(v);
+                window.ultimoToggle = v;
+                setTimeout(() => { window.ultimoToggle = null; }, 400);
+            }
+            toggleBotonBorrarBusqueda();
+            renderizar();
+        };
+
         window.limpiarTodosFiltros = function() {
             const input = document.getElementById('inputBuscar');
             const select = document.getElementById('filtroEstado');
             if (input) input.value = '';
             if (select) select.value = 'todos';
+            const selDeudor = document.getElementById('filtroDeudor');
+            if (selDeudor) selDeudor.value = 'todos';
+            window.deudoresAbiertos.clear();
             toggleBotonBorrarBusqueda();
             renderizar();
         }
 
         window.toggleBotonBorrarBusqueda = function() {
             const input = document.getElementById('inputBuscar');
-            const select = document.getElementById('filtroEstado');
+            const select = document.getElementById('filtroDeudor');
             const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
             const btnLimpiarTodos = document.getElementById('btnLimpiarTodosFiltros');
 
@@ -1809,25 +1842,28 @@
         }
 
         function copiarAlPortapapeles(texto, mensajeExito) {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(texto).then(() => {
-                    mostrarToast(mensajeExito);
-                }).catch(() => {
-                    fallbackCopiar(texto, mensajeExito);
-                });
+            const ok = () => mostrarToast(mensajeExito);
+            const fallo = () => mostrarToast('No se pudo copiar. Mantén presionado el texto para copiarlo.');
+            if (navigator.clipboard && window.isSecureContext && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(texto).then(ok).catch(() => fallbackCopiar(texto, ok, fallo));
             } else {
-                fallbackCopiar(texto, mensajeExito);
+                fallbackCopiar(texto, ok, fallo);
             }
         }
 
-        function fallbackCopiar(texto, mensajeExito) {
-            const inputAux = document.createElement("textarea");
-            inputAux.value = texto;
-            document.body.appendChild(inputAux);
-            inputAux.select();
-            document.execCommand("copy");
-            document.body.removeChild(inputAux);
-            mostrarToast(mensajeExito);
+        function fallbackCopiar(texto, ok, fallo) {
+            const aux = document.createElement('textarea');
+            aux.value = texto;
+            aux.setAttribute('readonly', '');
+            aux.style.position = 'fixed';
+            aux.style.opacity = '0';
+            document.body.appendChild(aux);
+            aux.select();
+            aux.setSelectionRange(0, texto.length);
+            let copiado = false;
+            try { copiado = document.execCommand('copy'); } catch (e) { copiado = false; }
+            document.body.removeChild(aux);
+            copiado ? ok() : fallo();
         }
 
         function mostrarToast(mensaje, opciones) {
@@ -1994,7 +2030,7 @@
             }
 
             window.abrirMenuAcciones = function () {
-                const _selMes = document.getElementById('modalSeleccionarMes'); if (_selMes && !_selMes.classList.contains('hidden')) cerrarModalSeleccionarMes();
+                const _listaD = document.getElementById('modalListaDeudores'); if (_listaD && !_listaD.classList.contains('hidden')) cerrarListaDeudores(); const _selMes = document.getElementById('modalSeleccionarMes'); if (_selMes && !_selMes.classList.contains('hidden')) cerrarModalSeleccionarMes();
                 sheet.classList.add('is-open');
                 sheet.setAttribute('aria-hidden', 'false');
                 overlay.classList.add('is-open');
@@ -2003,7 +2039,7 @@
                 if (navigator.vibrate) navigator.vibrate(8);
             };
             window.cerrarMenuAcciones = function () {
-                const _selMes = document.getElementById('modalSeleccionarMes'); if (_selMes && !_selMes.classList.contains('hidden')) cerrarModalSeleccionarMes();
+                const _listaD = document.getElementById('modalListaDeudores'); if (_listaD && !_listaD.classList.contains('hidden')) cerrarListaDeudores(); const _selMes = document.getElementById('modalSeleccionarMes'); if (_selMes && !_selMes.classList.contains('hidden')) cerrarModalSeleccionarMes();
                 sheet.classList.remove('is-open');
                 sheet.setAttribute('aria-hidden', 'true');
                 overlay.classList.remove('is-open');
@@ -2022,10 +2058,9 @@
                 cerrarMenuAcciones();
                 setActivo('inicio');
                 const inp = document.getElementById('inputBuscar');
-                if (inp && inp.value !== '') {
-                    inp.value = '';
-                    if (typeof toggleBotonBorrarBusqueda === 'function') toggleBotonBorrarBusqueda();
-                    renderizar();
+                const selD = document.getElementById('filtroDeudor');
+                if ((inp && inp.value !== '') || (selD && selD.value !== 'todos')) {
+                    window.limpiarTodosFiltros();
                 }
                 irAUltimoMesConDatos();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2038,8 +2073,6 @@
             };
             window.copiarGeneral = function () {
                 cerrarMenuAcciones();
-                const b = document.querySelector('.dock-copy');
-                b.classList.remove('is-pulse'); void b.offsetWidth; b.classList.add('is-pulse');
                 exportarResumenWhatsApp();
             };
             window.navMeses = function () {
@@ -2834,6 +2867,57 @@
             const sheet = document.getElementById('menuSheet');
             if (sheet && sheet.classList.contains('is-open')) cerrarMenuAcciones();
             else abrirMenuAcciones();
+        };
+    </script>
+
+    <script>
+
+    </script>
+
+    <script>
+        // ===== Ventana flotante con la lista de deudores =====
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modalListaDeudores" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-end justify-center p-4 z-[42]" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);" onclick="if(event.target===this)cerrarListaDeudores()">
+                <div class="modal-content bg-slate-800/95 backdrop-blur-2xl border border-white/10 w-full max-w-sm rounded-[28px] p-5 shadow-[0_-20px_60px_-10px_rgba(124,58,237,0.35)]">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-slate-100">Deudores</h3>
+                        <button onclick="cerrarListaDeudores()" class="text-slate-400 hover:text-white p-1" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div id="listaDeudoresBody" class="max-h-[55vh] overflow-y-auto space-y-1.5"></div>
+                </div>
+            </div>`);
+
+        window.abrirListaDeudores = function () {
+            const mAbierta = document.getElementById('modalListaDeudores');
+            if (mAbierta && !mAbierta.classList.contains('hidden')) { cerrarListaDeudores(); return; }
+            cerrarMenuAcciones();
+            llenarListaDeudores();
+            const sel = document.getElementById('filtroDeudor');
+            const actual = sel ? sel.value : 'todos';
+            const filas = [{ id: 'todos', nombre: 'Todos los deudores', extra: '' }].concat(
+                [...datosDeudores]
+                    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+                    .map(d => ({ id: d.id, nombre: d.nombre, extra: d.pagado ? 'Pagado' : 'Pendiente' }))
+            );
+            document.getElementById('listaDeudoresBody').innerHTML = filas.map(f => `
+                <button onclick="elegirDeudorLista('${f.id}')" class="w-full flex justify-between items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs transition ${f.id === actual ? 'bg-purple-600/25 border-purple-500 text-purple-100' : 'bg-slate-900/60 border-slate-700/60 text-slate-200 hover:border-purple-500/60'}">
+                    <span class="font-semibold truncate">${esc(f.nombre)}</span>
+                    <span class="text-[10px] shrink-0 ${f.extra === 'Pagado' ? 'text-emerald-400' : f.extra === 'Pendiente' ? 'text-rose-300' : 'text-slate-500'}">${f.extra}</span>
+                </button>`).join('');
+            const m = document.getElementById('modalListaDeudores');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        };
+        window.cerrarListaDeudores = function () {
+            const m = document.getElementById('modalListaDeudores');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        };
+        window.elegirDeudorLista = function (id) {
+            const sel = document.getElementById('filtroDeudor');
+            if (sel) sel.value = id;
+            cerrarListaDeudores();
+            cambiarFiltroDeudor();
         };
     </script>
 </body>
