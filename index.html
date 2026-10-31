@@ -93,12 +93,12 @@
             display: flex; align-items: center; justify-content: center;
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             border: 3px solid #0f172a;
-            box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.65), 0 0 0 1px rgba(255,255,255,.12) inset;
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.6), 0 0 0 1px rgba(255,255,255,.12) inset;
             transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s;
             -webkit-tap-highlight-color: transparent;
         }
         .modo-claro .dock-fab { border-color:#f1f5f9; }
-        .dock-fab:hover { box-shadow: 0 14px 30px -5px rgba(192, 38, 211, 0.75); }
+        .dock-fab:hover { box-shadow: 0 14px 30px -5px rgba(79, 70, 229, 0.75); }
         .dock-fab:active { transform: scale(0.88); }
         .dock-fab i { transition: transform .35s cubic-bezier(.34,1.56,.64,1); }
         .dock-fab.is-open i { transform: rotate(135deg); }
@@ -227,6 +227,27 @@
         #dockNav .dock-center { grid-column: 3; }
         #modalListaDeudores:not(.hidden) { animation: calFondoEntra .3s ease-out; }
         #modalListaDeudores:not(.hidden) > div { animation: calSube .38s cubic-bezier(.32,.72,0,1); }
+        /* Burbujas del menú de deudor */
+        [data-burb]:not([data-burb="triangulo"]) .flecha-arr, [data-burb]:not([data-burb="triangulo"]) .flecha-aba { display: none !important; }
+        [data-burb] .burb-circ, [data-burb] .burb-cola { display: none !important; }
+        [data-burb="nube"] .burb-circ { display: block !important; position: absolute; }
+        [data-burb="comic"] .burb-cola { display: block !important; position: absolute; }
+        [data-burb="nube"] { border-radius: 22px !important; }
+        [data-burb="comic"] { border-radius: 16px 16px 4px 16px !important; }
+        [data-burb="sombra"] { border-radius: 16px !important; box-shadow: 0 12px 28px rgba(0,0,0,0.55) !important; }
+        @keyframes mantIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+        #modalMantener:not(.hidden) .mant-panel { animation: mantIn .22s cubic-bezier(.2,.9,.3,1.1); }
+        #modalBusquedas:not(.hidden) .mant-panel { animation: mantIn .22s cubic-bezier(.2,.9,.3,1.1); }
+        #modalGasto:not(.hidden) .mant-panel { animation: mantIn .22s cubic-bezier(.2,.9,.3,1.1); }
+        /* Todas las ventanas flotantes: mismo efecto translúcido de la pulsación prolongada */
+        .modal-overlay { background-color: rgba(15,23,42,.35) !important; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .modal-overlay > .modal-content, .modal-overlay > .mant-panel { background-color: rgba(30,41,59,.95) !important; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-color: #334155; }
+        /* Estilos del aviso de notificación */
+        #toastNotificacion[data-aviso="tarjeta"] { left: 12px !important; right: 12px !important; width: auto !important; max-width: none !important; transform: none !important; border-radius: 14px !important; background: #1e293b !important; color: #e2e8f0 !important; border: 1px solid #334155 !important; justify-content: space-between !important; padding: 10px 14px !important; }
+        #toastNotificacion[data-aviso="cristal"] { border-radius: 999px !important; background: rgba(4,120,87,.6) !important; backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; color: #ffffff !important; border: 1px solid rgba(110,231,183,.25) !important; box-shadow: 0 4px 12px rgba(4,120,87,.18) !important; font-weight: 600 !important; }
+        #toastNotificacion[data-aviso="barra"] { left: 0 !important; right: 0 !important; width: auto !important; max-width: none !important; transform: none !important; border-radius: 0 !important; background: #1e293b !important; color: #e2e8f0 !important; border: 0 !important; border-top: 0.5px solid #334155 !important; justify-content: space-between !important; padding: 12px 16px !important; }
+        #toastNotificacion[data-aviso="barra"] { bottom: calc(env(safe-area-inset-bottom, 0px) + 88px) !important; }
+        #modalFiltroCuotas:not(.hidden) .mant-panel { animation: mantIn .22s cubic-bezier(.2,.9,.3,1.1); }
     </style>
     <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
 </head>
@@ -242,8 +263,8 @@
                             <i class="fa-solid fa-wallet text-xl sm:text-2xl"></i>
                         </div>
                         <div class="min-w-0">
-                            <h1 class="text-sm sm:text-xl font-bold text-white flex items-center gap-1.5 sm:gap-2 leading-tight truncate">
-                                <span class="truncate">Control de Deudores</span>
+                            <h1 class="text-base sm:text-xl font-bold text-white flex flex-wrap items-center gap-x-2 gap-y-1 leading-tight">
+                                <span>Control de deudores</span>
                                 <span id="mesBadge" class="bg-indigo-900/60 text-indigo-300 text-[9px] sm:text-xs px-2 py-0.5 rounded-full border border-indigo-500/40 font-mono uppercase shrink-0">SEPTIEMBRE</span>
                             </h1>
                             <p class="text-[11px] text-slate-400 hidden sm:block">Control automático de cuotas, saldos e historial mensual en Supabase.</p>
@@ -253,17 +274,17 @@
                     <!-- Supabase Sync Indicator Badge -->
                     <div id="cloudStatusBadge" onclick="abrirModalConfigSupabase()" class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700/80 px-2 py-1 rounded-xl text-[10px] font-mono text-slate-300 shadow-inner shrink-0 cursor-pointer hover:border-indigo-500 transition" title="Haz clic para configurar Supabase">
                         <span id="cloudDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                        <span id="cloudText" class="truncate max-w-[90px] sm:max-w-none text-[10px]">Conectando...</span>
+                        <span id="cloudText" class="hidden sm:inline truncate text-[10px]">Conectando...</span>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                <div class="grid grid-cols-[auto_1fr_auto] sm:flex sm:items-center sm:justify-end gap-2 w-full sm:w-auto">
                     <button onclick="abrirModalReglas()" class="bg-slate-900 hover:bg-slate-950 border border-slate-700 text-indigo-400 px-2.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm text-xs" title="Reglas del Sistema de Cuotas">
                         <i class="fa-solid fa-circle-info text-sm"></i>
                         <span class="text-[11px] text-slate-300 hidden sm:inline">Reglas</span>
                     </button>
                     
-                    <div class="flex items-center bg-slate-900 border border-indigo-500/60 rounded-xl overflow-hidden shadow-sm">
+                    <div class="flex items-center justify-self-center bg-slate-900 border border-indigo-500/60 rounded-xl overflow-hidden shadow-sm">
                         <button onclick="cambiarMesRapido(-1)" class="px-2 py-1.5 text-indigo-300 hover:bg-indigo-600/20 transition text-xs" title="Mes Anterior">
                             <i class="fa-solid fa-chevron-left"></i>
                         </button>
@@ -336,7 +357,10 @@
                 </div>
                 <div class="flex items-center gap-1.5 w-full sm:w-auto sm:shrink-0">
                     <span class="text-xs text-slate-400 hidden sm:inline">Filtrar:</span>
-                    <select id="filtroDeudor" onchange="cambiarFiltroDeudor();" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 max-w-[180px] sm:max-w-[240px]">
+                    <button id="btnDesplegarTodos" onclick="toggleDesplegarTodos()" title="Desplegar todos" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1.5 text-xs transition"><i class="fa-solid fa-angles-down text-xs"></i></button>
+                    <button id="btnFiltroCuotas" onclick="abrirFiltroCuotas()" title="Filtrar por cuotas" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2 max-w-[160px] transition hover:border-indigo-500"><i class="fa-solid fa-filter text-[10px] text-indigo-400"></i><span id="txtFiltroCuotas" class="truncate">Todas las cuotas</span></button>
+                    <button id="btnFiltroDeudor" onclick="abrirListaDeudores()" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2 max-w-[180px] sm:max-w-[240px] transition hover:border-indigo-500"><span id="txtFiltroDeudor" class="truncate">Todos los deudores</span><i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i></button>
+                    <select id="filtroDeudor" onchange="cambiarFiltroDeudor();" class="hidden">
                         <option value="todos">Todos los deudores</option>
                     </select>
 
@@ -347,18 +371,27 @@
                 </div>
             </div>
 
-            <div id="barraMarcado" class="flex flex-wrap items-center justify-between gap-2 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
-                <div class="flex items-center gap-3 text-xs">
-                    <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> Marcados <span id="cntMarcados" class="font-mono">0</span></span>
-                    <span class="text-slate-400"><i class="fa-regular fa-circle"></i> Desmarcados <span id="cntDesmarcados" class="font-mono">0</span></span>
+            <div id="barraMarcado" class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-3 flex flex-col gap-2.5">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-baseline gap-1.5 text-xs">
+                        <span id="cntMarcados" class="font-mono font-bold text-base text-emerald-400">0</span>
+                        <span class="text-slate-400">pagados</span>
+                        <span class="text-slate-600 mx-1">·</span>
+                        <span id="cntDesmarcados" class="font-mono font-bold text-base text-slate-300">0</span>
+                        <span class="text-slate-400">pendientes</span>
+                    </div>
+                    <span id="pctMarcados" class="font-mono text-[11px] text-slate-400">0%</span>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="marcarTodos(true)" class="bg-transparent border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 px-2 py-1 rounded-md text-[10px] transition flex items-center gap-1"><i class="fa-solid fa-check-double"></i> Marcar todos</button>
-                    <button onclick="marcarTodos(false)" class="bg-transparent border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 px-2 py-1 rounded-md text-[10px] transition flex items-center gap-1"><i class="fa-solid fa-xmark"></i> Desmarcar todos</button>
+                <div class="h-1.5 rounded-full bg-slate-900 overflow-hidden">
+                    <div id="barraMarcadosProg" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width:0%"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="marcarTodos(true)" class="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 active:scale-[0.98] transition"><i class="fa-solid fa-check-double"></i> Marcar todos</button>
+                    <button onclick="marcarTodos(false)" class="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-slate-700/40 border border-slate-600/60 text-slate-300 hover:bg-slate-700/70 active:scale-[0.98] transition"><i class="fa-solid fa-rotate-left"></i> Desmarcar todos</button>
                 </div>
             </div>
             <div id="resumenBusqueda" class="hidden text-[11px] text-slate-400 px-1"></div>
-            <div id="contenedorDeudores" class="grid grid-cols-1 gap-3">
+            <div id="contenedorDeudores" class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
             </div>
 
             <div id="emptyState" class="hidden text-center py-12 bg-slate-800/30 border border-dashed border-slate-700 rounded-2xl px-4">
@@ -416,9 +449,9 @@
                     <span class="menu-ico from-rose-500 to-pink-600"><i class="fa-solid fa-file-pdf"></i></span>
                     <span>PDF</span>
                 </button>
-                <button onclick="accionMenu(() => abrirModalReglas())" class="menu-tile">
-                    <span class="menu-ico from-sky-500 to-indigo-600"><i class="fa-solid fa-circle-info"></i></span>
-                    <span>Reglas</span>
+                <button onclick="accionMenu(() => abrirPapelera())" class="menu-tile">
+                    <span class="menu-ico from-slate-500 to-slate-700"><i class="fa-solid fa-trash-arrow-up"></i></span>
+                    <span>Papelera</span>
                 </button>
                 <button onclick="accionMenu(() => exportarRespaldoJSON())" class="menu-tile">
                     <span class="menu-ico from-blue-500 to-cyan-600"><i class="fa-solid fa-download"></i></span>
@@ -491,10 +524,10 @@
     <!-- ETIQUETA FIJA DEL MES ACTUAL -->
     <button id="pillMes" onclick="abrirModalSeleccionarMes()" aria-label="Cambiar mes" class="fixed left-1/2 -translate-x-1/2 z-[38] bg-slate-900/90 backdrop-blur border border-indigo-500/50 text-indigo-300 font-mono font-bold text-[11px] px-3 py-1 rounded-full shadow-lg transition active:scale-95" style="top: calc(env(safe-area-inset-top, 0px) + 6px);">--</button>
     <!-- BANNER FLOTANTE DE NOTIFICACIÓN (TOAST) -->
-    <div id="toastNotificacion" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 88px); width: max-content; max-width: min(92vw, 440px); white-space: normal;" class="fixed left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-emerald-400/40 text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
+    <div id="toastNotificacion" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 88px); width: max-content; max-width: min(92vw, 440px); white-space: normal;" class="fixed left-1/2 -translate-x-1/2 z-50 bg-emerald-800 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-emerald-400/40 text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
         <i class="fa-solid fa-circle-check text-emerald-200 text-base"></i>
         <span id="toastMensaje">Texto copiado al portapapeles</span>
-        <button id="btnDeshacer" onclick="deshacerUltimo()" class="hidden ml-1 bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded-md text-[11px] font-bold transition"><i class="fa-solid fa-rotate-left"></i> Deshacer</button>
+        <button id="btnDeshacer" onclick="deshacerUltimo()" title="Deshacer" aria-label="Deshacer" class="hidden ml-1 bg-white/20 hover:bg-white/30 w-7 h-7 rounded-md flex items-center justify-center transition"><i class="fa-solid fa-rotate-left text-xs"></i></button>
     </div>
 
     <!-- MODAL CONFIRMACION PERSONALIZADO -->
@@ -794,7 +827,7 @@
 
         function renderizar() {
             const busqueda = normTxt(document.getElementById('inputBuscar').value).trim();
-            const filtroEstado = 'todos';
+            const filtroEstado = window.filtroCuotasVal || 'todos';
             const filtroDeudorVal = (document.getElementById('filtroDeudor') || { value: 'todos' }).value;
             llenarListaDeudores();
 
@@ -824,6 +857,9 @@
                     if (filtroEstado === 'activos' && (esCuotaCero || esCuotaCompletada)) coincideFiltro = false;
                     if (filtroEstado === 'cero' && !esCuotaCero) coincideFiltro = false;
                     if (filtroEstado === 'completadas' && !esCuotaCompletada) coincideFiltro = false;
+                    if (filtroEstado === 'futuras' && !esCuotaCero) coincideFiltro = false;
+                    if (filtroEstado === 'ultimas' && !esUltimaCuota) coincideFiltro = false;
+                    if (filtroEstado === 'finalizadas' && !esCuotaCompletada) coincideFiltro = false;
 
                     if (coincideFiltro) {
                         itemsProcesados.push({
@@ -841,7 +877,7 @@
                 
                 const coincideEstadoDeudor = (filtroEstado !== 'pagados') || (filtroEstado === 'pagados' && d.pagado);
 
-                if (coincideTexto && coincideEstadoDeudor && (itemsProcesados.length > 0 || busqueda === '')) {
+                if (coincideTexto && coincideEstadoDeudor && (itemsProcesados.length > 0 || (busqueda === '' && filtroEstado === 'todos'))) {
                     deudoresMostrados++;
 
                     let itemsHtml = itemsProcesados.map(item => {
@@ -865,7 +901,7 @@
                         const conceptoResaltado = resaltarTexto(item.concepto, busqueda);
 
                         return `
-                            <div class="flex items-center justify-between py-2 border-b border-slate-700/40 text-sm">
+                            <div data-item-id="${item.id}" data-item-deudor="${d.id}" class="flex items-center justify-between py-2 border-b border-slate-700/40 text-sm">
                                 <div class="flex items-center gap-1.5 min-w-0 pr-2">
                                     ${d.modoCuentas ? `<button onclick="togglePagadoItem('${d.id}', '${item.id}')" class="p-0.5 transition ${item.pagado ? 'text-emerald-400' : 'text-slate-500 hover:text-emerald-400'}" title="${item.pagado ? 'Desmarcar pagada' : 'Marcar pagada'}"><i class="${item.pagado ? 'fa-solid' : 'fa-regular'} fa-circle-check text-[12px]"></i></button>` : ''}
                                     <span class="font-bold truncate ${d.modoCuentas && item.pagado ? 'text-emerald-400 line-through' : 'text-slate-200'}">${conceptoResaltado}</span>
@@ -887,42 +923,24 @@
                     const cobradoDeudor = cobradoDe(d);
                     const abonadoDeudor = totalAbonado(d);
                     const faltaDeudor = d.pagado ? 0 : Math.max(0, subtotalDeudor - abonadoDeudor);
-                    const barraDeudor = abonadoDeudor > 0 && !d.pagado
-                        ? `<div class="text-[11px] font-mono pt-2 mt-2 border-t border-slate-700/50 truncate"><span class="text-emerald-400">Abonó ${formatearMoneda(abonadoDeudor)}</span> · <span class="text-rose-300">Falta ${formatearMoneda(faltaDeudor)}</span></div>`
-                        : '';
+                    const barraDeudor = '';
 
                     contenedor.innerHTML += `
-                        <div class="${window.deudoresAbiertos.has(d.id) ? 'bg-slate-800 border-indigo-500/35 ring-1 ring-indigo-500/15 shadow-indigo-950/20' : 'bg-slate-800 border-slate-700/80'} border rounded-2xl p-2.5 shadow-lg flex flex-col justify-between transition-all duration-200">
-                            <button type="button" onclick="toggleDetalleDeudor('${d.id}')" aria-expanded="${window.deudoresAbiertos.has(d.id)}" class="w-full flex items-center justify-between gap-3 text-left rounded-xl px-2 py-2 transition ${window.deudoresAbiertos.has(d.id) ? 'bg-slate-700/60' : 'hover:bg-slate-700/50'}">
+                        <div data-deudor-id="${d.id}" class="${window.deudoresAbiertos.has(d.id) ? 'lg:col-span-2 bg-slate-800 border-indigo-500/35 ring-1 ring-indigo-500/15 shadow-indigo-950/20' : 'bg-slate-800 border-slate-700/80'} border rounded-2xl p-2.5 shadow-lg flex flex-col justify-between transition-all duration-200">
+                            <div role="button" tabindex="0" onclick="toggleDetalleDeudor('${d.id}')" aria-expanded="${window.deudoresAbiertos.has(d.id)}" class="w-full flex items-center justify-between gap-3 text-left rounded-xl px-2 py-2 transition ${window.deudoresAbiertos.has(d.id) ? 'bg-slate-700/60' : 'hover:bg-slate-700/50'}">
                                 <span class="flex items-center gap-2 min-w-0">
                                     <i class="fa-solid fa-user text-indigo-300 text-sm shrink-0"></i>
                                     <span class="font-black text-sm uppercase tracking-wide truncate text-white">${nombreResaltado}</span>
                                     ${d.pagado ? '<span class="text-[9px] text-emerald-300 border border-emerald-700 rounded px-1.5 py-0.5">PAGADO</span>' : ''}
                                 </span>
-                                <i class="fa-solid ${window.deudoresAbiertos.has(d.id) ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400 text-xs shrink-0"></i>
-                            </button>
+                                <span class="flex items-center gap-1.5 shrink-0">
+                                    ${window.deudoresAbiertos.has(d.id) ? htmlAccionesDeudor(d) : ''}
+                                    <i class="fa-solid ${window.deudoresAbiertos.has(d.id) ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400 text-xs ml-1"></i>
+                                </span>
+                            </div>
                             <div id="detalleDeudor-${d.id}" class="${window.deudoresAbiertos.has(d.id) ? '' : 'hidden'} ${window.deudoresAbiertos.has(d.id) && window.ultimoToggle === d.id ? 'detalle-abre' : ''} pt-2">
                             <div>
-                                <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-700/80">
-                                    <div class="flex items-center gap-2.5 min-w-0">
-                                        <button onclick="togglePagadoDeudor('${d.id}')" class="w-6 h-6 rounded-lg flex items-center justify-center border transition shrink-0 ${d.pagado ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'bg-slate-900 border-slate-600 text-transparent hover:border-indigo-400'}" title="Marcar deudor como totalmente pagado este mes">
-                                            <i class="fa-solid fa-check text-xs font-bold"></i>
-                                        </button>
-                                        <div class="flex items-center gap-1.5 min-w-0"><button onclick="toggleModoCuentas('${d.id}')" title="${d.modoCuentas ? 'Desactivar marcado por cuenta' : 'Activar marcado por cuenta'}" class="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] border transition ${d.modoCuentas ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200' : 'border-slate-700 text-slate-500 hover:text-slate-300'}"><i class="fa-solid fa-list-check"></i></button></div>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-1.5 shrink-0">
-                                        <button onclick="abrirModalItem('${d.id}')" class="bg-indigo-600 hover:bg-indigo-500 text-white w-7 h-7 rounded-lg transition font-bold flex items-center justify-center shadow-sm" title="Agregar gasto a ${d.nombre}">
-                                            <i class="fa-solid fa-plus text-xs"></i>
-                                        </button>
-                                        <button onclick="exportarWhatsAppDeudor('${d.id}')" class="bg-green-600/20 hover:bg-green-600/40 border border-green-500/40 text-green-400 text-[10px] px-2 py-1 rounded-lg transition font-medium flex items-center gap-1" title="Copiar resumen de este deudor">
-                                            <i class="fa-regular fa-copy text-xs"></i>
-                                        </button>
-                                        <button onclick="abrirModalDeudor('${d.id}')" class="text-slate-500 hover:text-white p-1 text-xs" title="Editar Nombre"><i class="fa-solid fa-pen"></i></button>
-                                        <button onclick="eliminarDeudor('${d.id}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Eliminar Deudor"><i class="fa-solid fa-trash"></i></button>
-                                    </div>
-                                </div>
-
+                                ${window.deudoresAbiertos.has(d.id) ? filaFijadosDeudor(d) : ''}
                                 <div class="space-y-0.5">
                                     ${itemsHtml || '<p class="text-slate-500 text-xs py-2 italic text-center">Sin gastos ni cuentas.</p>'}
                                 </div>
@@ -1011,9 +1029,14 @@
                 `¿Estás seguro de que deseas eliminar a "${nombre}" y todas sus cuentas asociadas?`,
                 "fa-trash-can",
                 () => {
+                    if (deudor) {
+                        const pap = leerPapelera();
+                        pap.unshift({ mes: claveMesActual, ts: Date.now(), deudor: JSON.parse(JSON.stringify(deudor)) });
+                        guardarPapeleraLista(pap);
+                    }
                     datosDeudores = datosDeudores.filter(d => d.id !== id);
                     guardarDatos();
-                    mostrarToast(`Deudor ${nombre} eliminado.`);
+                    mostrarToast(`Deudor ${nombre} enviado a la papelera.`);
                 }
             );
         }
@@ -1645,7 +1668,6 @@
             const actual = sel.value;
             const opciones = ['<option value="todos">Todos los deudores</option>'].concat(
                 [...datosDeudores]
-                    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
                     .map(d => `<option value="${d.id}">${esc(d.nombre)}</option>`)
             );
             sel.innerHTML = opciones.join('');
@@ -1665,6 +1687,7 @@
         };
 
         window.limpiarTodosFiltros = function() {
+            window.filtroCuotasVal = 'todos';
             const input = document.getElementById('inputBuscar');
             const select = document.getElementById('filtroEstado');
             if (input) input.value = '';
@@ -2057,7 +2080,7 @@
                 setActivo('inicio');
                 const inp = document.getElementById('inputBuscar');
                 const selD = document.getElementById('filtroDeudor');
-                if ((inp && inp.value !== '') || (selD && selD.value !== 'todos')) {
+                if ((inp && inp.value !== '') || (selD && selD.value !== 'todos') || (window.filtroCuotasVal && window.filtroCuotasVal !== 'todos')) {
                     window.limpiarTodosFiltros();
                 }
                 irAUltimoMesConDatos();
@@ -2197,6 +2220,10 @@
             const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
             set('cntMarcados', marcados);
             set('cntDesmarcados', total - marcados);
+            const pct = total > 0 ? Math.round(marcados / total * 100) : 0;
+            set('pctMarcados', pct + '%');
+            const prog = document.getElementById('barraMarcadosProg');
+            if (prog) prog.style.width = pct + '%';
         }
 
         window.marcarTodos = function (valor) {
@@ -2689,8 +2716,6 @@
             actualizarResumenBusqueda();
         };
 
-        // Limpieza: se quitó el registro de cambios
-        localStorage.removeItem('deudores_log');
         const DIA = 864e5;
 
         // ===== 6. Respaldo automático semanal + recordatorio =====
@@ -2784,33 +2809,96 @@
     </script>
 
     <script>
-        // ===== Deslizar hacia abajo cierra ventanas, hoja de acciones y opciones =====
+        // ===== Arrastrar hacia abajo: la ventana sigue el dedo y se cierra solo si se suelta abajo =====
         (function () {
-            let x0 = null, y0 = null, ignorar = false;
-            document.addEventListener('touchstart', e => {
-                const sc = e.target.closest('.overflow-y-auto, .overflow-auto');
-                ignorar = !!sc && sc.scrollTop > 0;
-                x0 = e.touches[0].clientX;
-                y0 = e.touches[0].clientY;
-            }, { passive: true });
-            document.addEventListener('touchend', e => {
-                if (y0 === null) return;
-                const dy = e.changedTouches[0].clientY - y0;
-                const dx = e.changedTouches[0].clientX - x0;
-                y0 = null;
-                if (ignorar || dy < 60 || Math.abs(dx) > dy / 1.5) return;
+            let x0 = null, y0 = null, t0 = 0, ignorar = false, arrastrando = false, dyUlt = 0, objetivo = null;
+            let ultimoScrollInterno = 0, armadoHasta = 0;
+            // Registrar cuándo se desplazó el contenido de una ventana
+            document.addEventListener('scroll', e => {
+                const t = e.target;
+                if (t && t.nodeType === 1) ultimoScrollInterno = Date.now();
+            }, { capture: true, passive: true });
 
-                const cal = document.getElementById('modalSeleccionarMes');
-                if (cal && !cal.classList.contains('hidden') && typeof cerrarModalSeleccionarMes === 'function') cerrarModalSeleccionarMes();
+            const visibles = () => {
+                const out = [];
+                const sh = document.getElementById('menuSheet');
+                if (sh && sh.classList.contains('is-open')) out.push({ el: sh.firstElementChild, root: sh, tipo: 'sheet' });
                 document.querySelectorAll('.modal-overlay').forEach(m => {
-                    if (m.id === 'modalSeleccionarMes' || m.classList.contains('hidden')) return;
-                    m.classList.add('hidden');
-                    m.classList.remove('flex');
+                    if (!m.classList.contains('hidden') && m.firstElementChild) out.push({ el: m.firstElementChild, root: m, tipo: 'modal' });
                 });
-                const sheet = document.getElementById('menuSheet');
-                if (sheet && sheet.classList.contains('is-open') && typeof cerrarMenuAnimado === 'function') cerrarMenuAnimado();
-                const panel = document.getElementById('panelOpciones');
-                if (panel && !panel.classList.contains('opciones-cerrado') && typeof setOpciones === 'function') setOpciones(false);
+                return out;
+            };
+
+            // ¿Hay algún contenedor entre el dedo y la ventana que ya esté desplazado hacia abajo?
+            const hayContenidoDesplazado = (nodo, tope) => {
+                let n = nodo;
+                while (n && n !== tope && n.nodeType === 1) {
+                    const cs = getComputedStyle(n);
+                    const scrollable = (cs.overflowY === 'auto' || cs.overflowY === 'scroll') && n.scrollHeight > n.clientHeight + 2;
+                    if (scrollable && n.scrollTop > 0) return true;
+                    n = n.parentElement;
+                }
+                return false;
+            };
+
+            document.addEventListener('touchstart', e => {
+                const lista = visibles();
+                objetivo = lista.length ? lista[lista.length - 1] : null;
+                arrastrando = false; dyUlt = 0;
+                x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+                const recorrible = objetivo && objetivo.tipo === 'modal' && objetivo.el.scrollHeight > objetivo.el.clientHeight + 2;
+                ignorar = !objetivo || recorrible || hayContenidoDesplazado(e.target, objetivo.el) || !!e.target.closest('input, textarea, select');
+            }, { passive: true });
+
+            document.addEventListener('touchmove', e => {
+                if (ignorar || !objetivo) return;
+                const dy = e.touches[0].clientY - y0;
+                const dx = e.touches[0].clientX - x0;
+                if (!arrastrando) {
+                    if (dy < 8 || Math.abs(dx) > dy) return;
+                    arrastrando = true;
+                }
+                if (e.cancelable) e.preventDefault();
+                dyUlt = Math.max(0, dy);
+                const el = objetivo.el;
+                el.style.transition = 'none';
+                el.style.setProperty('transform', `translateY(${dyUlt * 0.9}px)`, 'important');
+                const alturaRef = el.offsetHeight || 300;
+                const op = Math.max(0.15, 1 - (dyUlt / (alturaRef * 0.8)));
+                el.style.opacity = String(op);
+                if (objetivo.tipo !== 'sheet') objetivo.root.style.opacity = String(op);
+            }, { passive: false });
+
+            document.addEventListener('touchend', e => {
+                if (!arrastrando || !objetivo) { arrastrando = false; return; }
+                const el = objetivo.el, v = objetivo;
+                const alto = el.offsetHeight || 300;
+                const rapido = (dyUlt / Math.max(1, Date.now() - t0)) > 0.6 && dyUlt > 30;
+                arrastrando = false;
+                let quiereCerrar = dyUlt > Math.max(90, alto * 0.3) || rapido;
+                // Si la ventana tenía contenido desplazado hace poco, el primer deslizar solo la arma
+                if (quiereCerrar && (Date.now() - ultimoScrollInterno < 4000) && Date.now() >= armadoHasta) {
+                    armadoHasta = Date.now() + 2500;
+                    quiereCerrar = false;
+                }
+                if (quiereCerrar) {
+                    armadoHasta = 0;
+                    el.style.transition = 'transform .14s ease-in, opacity .14s ease-in';
+                    el.style.setProperty('transform', 'translateY(110%)', 'important');
+                    el.style.opacity = '0';
+                    if (v.tipo !== 'sheet') { v.root.style.transition = 'opacity .14s ease-in'; v.root.style.opacity = '0'; }
+                    setTimeout(() => {
+                        if (v.tipo === 'sheet' && typeof cerrarMenuAcciones === 'function') cerrarMenuAcciones();
+                        else { v.root.classList.add('hidden'); v.root.classList.remove('flex'); v.root.style.opacity = ''; v.root.style.transition = ''; }
+                        el.style.transition = ''; el.style.opacity = ''; el.style.setProperty('transform', '', 'important');
+                    }, 150);
+                } else {
+                    el.style.transition = 'transform .25s cubic-bezier(.32,.72,0,1), opacity .25s';
+                    el.style.setProperty('transform', 'translateY(0)', 'important');
+                    el.style.opacity = '1';
+                    if (v.tipo !== 'sheet') { v.root.style.transition = 'opacity .25s'; v.root.style.opacity = '1'; }
+                    setTimeout(() => { el.style.transition = ''; el.style.opacity = ''; el.style.setProperty('transform', '', 'important'); if (v.tipo !== 'sheet') { v.root.style.opacity = ''; v.root.style.transition = ''; } }, 260);
+                }
             }, { passive: true });
         })();
     </script>
@@ -2894,7 +2982,6 @@
             const actual = sel ? sel.value : 'todos';
             const filas = [{ id: 'todos', nombre: 'Todos los deudores', extra: '' }].concat(
                 [...datosDeudores]
-                    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
                     .map(d => ({ id: d.id, nombre: d.nombre, extra: d.pagado ? 'Pagado' : 'Pendiente' }))
             );
             document.getElementById('listaDeudoresBody').innerHTML = filas.map(f => `
@@ -2916,6 +3003,757 @@
             if (sel) sel.value = id;
             cerrarListaDeudores();
             cambiarFiltroDeudor();
+        };
+    </script>
+
+    <script>
+        // ===== Historial de cambios por deudor =====
+        function registrarCambiosDeudores(antesJSON, despues) {
+            const antes = JSON.parse(antesJSON);
+            const clave = claveMesActual;
+            const prev = antes[clave] || [];
+            const cur = despues[clave] || [];
+            const pm = new Map(prev.map(d => [d.id, d]));
+            const cm = new Map(cur.map(d => [d.id, d]));
+            const ts = Date.now();
+            const out = [];
+            const add = (d, accion) => out.push({ ts, mes: clave, id: d.id, nombre: d.nombre, accion });
+
+            cur.forEach(d => {
+                const p = pm.get(d.id);
+                if (!p) { add(d, 'Deudor agregado'); return; }
+                if (!!p.pagado !== !!d.pagado) add(d, d.pagado ? 'Marcado como pagado' : 'Marcado como pendiente');
+                const pItems = new Map((p.items || []).map(i => [i.id, i]));
+                (d.items || []).forEach(i => {
+                    const pi = pItems.get(i.id);
+                    if (!pi) add(d, 'Cuenta agregada: ' + i.concepto);
+                    else if (!!pi.pagado !== !!i.pagado) add(d, (i.pagado ? 'Cuenta pagada: ' : 'Cuenta desmarcada: ') + i.concepto);
+                    else if (pi.monto !== i.monto || pi.concepto !== i.concepto || pi.cuotaAct !== i.cuotaAct || pi.cuotaTot !== i.cuotaTot)
+                        add(d, 'Cuenta modificada: ' + i.concepto);
+                });
+                (p.items || []).forEach(pi => {
+                    if (!(d.items || []).some(i => i.id === pi.id)) add(d, 'Cuenta eliminada: ' + pi.concepto);
+                });
+            });
+            prev.forEach(p => { if (!cm.has(p.id)) add(p, 'Deudor eliminado'); });
+            return out;
+        }
+
+        function agregarLogDeudores(entradas) {
+            if (!entradas.length) return;
+            try {
+                const log = JSON.parse(localStorage.getItem('deudores_log') || '[]');
+                localStorage.setItem('deudores_log', JSON.stringify(log.concat(entradas).slice(-500)));
+            } catch (e) {}
+        }
+
+        const _registrarBase6 = registrarCambioUndo;
+        registrarCambioUndo = function () {
+            const prevJSON = estadoBase;
+            const cambio = prevJSON !== null && !deshaciendo && JSON.stringify(historialMeses) !== prevJSON;
+            _registrarBase6();
+            if (cambio) agregarLogDeudores(registrarCambiosDeudores(prevJSON, historialMeses));
+        };
+
+        const _abrirHistBase6 = window.abrirHistorial;
+        window.abrirHistorial = function (id) {
+            _abrirHistBase6(id);
+            window.histCambiosId = id;
+            window.histCambiosTodos = false;
+            pintarCambiosHistorial();
+        };
+        window.verTodosCambiosHistorial = function () {
+            window.histCambiosTodos = !window.histCambiosTodos;
+            pintarCambiosHistorial();
+        };
+        function pintarCambiosHistorial() {
+            const id = window.histCambiosId;
+            const previo = document.getElementById('histCambiosBloque');
+            if (previo) previo.remove();
+            let log = [];
+            try { log = JSON.parse(localStorage.getItem('deudores_log') || '[]'); } catch (e) {}
+            const todos = log.filter(e => e.id === id).reverse();
+            const mostrar = window.histCambiosTodos ? todos.slice(0, 30) : todos.slice(0, 6);
+            const filas = mostrar.map(e => {
+                const f = new Date(e.ts);
+                const fecha = f.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' });
+                const hora = f.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                return `<div class="flex items-center justify-between gap-3 py-2 border-b border-slate-700/50">
+                    <span class="text-[11px] text-slate-500 font-mono shrink-0">${fecha} ${hora}</span>
+                    <span class="text-xs text-slate-200 text-right">${esc(e.accion)}</span></div>`;
+            }).join('');
+            const boton = todos.length > 6
+                ? `<button onclick="verTodosCambiosHistorial()" class="w-full mt-2 py-2 rounded-xl text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 active:scale-[0.98] transition">${window.histCambiosTodos ? 'Ver menos' : 'Ver todos (' + todos.length + ')'}</button>`
+                : '';
+            $m('histBody').insertAdjacentHTML('beforeend',
+                `<div id="histCambiosBloque" class="mt-5">
+                    <h4 class="text-xs font-semibold text-slate-300 mb-2">Cambios recientes</h4>
+                    ${filas || '<p class="text-xs text-slate-500 italic py-2">Sin cambios registrados.</p>'}
+                    ${boton}
+                </div>`);
+        }
+    </script>
+
+    <script>
+
+    </script>
+
+    <script>
+        // ===== Acciones del deudor: menú de tres puntos + iconos fijados =====
+        const ACCIONES_DEUDOR = [
+            { k: 'estimacion', icon: 'fa-chart-pie', label: () => 'Estimación', color: 'text-indigo-300', fuerte: 'bg-indigo-500 hover:bg-indigo-400 text-white', fn: id => `abrirEstimacion('${id}')` },
+            { k: 'agregar',   icon: 'fa-plus',              label: () => 'Agregar gasto',                              color: 'text-indigo-300',  fuerte: 'bg-indigo-600 hover:bg-indigo-500 text-white', fn: id => `abrirModalItem('${id}')` },
+            { k: 'pagado',    icon: 'fa-check',             label: d => d.pagado ? 'Desmarcar pagado' : 'Marcar como pagado', color: 'text-emerald-400', fuerte: 'bg-emerald-600 hover:bg-emerald-500 text-white', fn: id => `togglePagadoDeudor('${id}')` },
+            { k: 'modo',      icon: 'fa-list-check',        label: d => d.modoCuentas ? 'Desactivar marcado por cuenta' : 'Activar marcado por cuenta', color: 'text-indigo-300', fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `toggleModoCuentas('${id}')` },
+            { k: 'copiar',    icon: 'fa-copy',              label: () => 'Copiar resumen',                             color: 'text-green-400',   fuerte: 'bg-green-600 hover:bg-green-500 text-white', fn: id => `exportarWhatsAppDeudor('${id}')` },
+            { k: 'historial', icon: 'fa-clock-rotate-left', label: () => 'Historial',                                  color: 'text-slate-200',   fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `abrirHistorial('${id}')` },
+            { k: 'editar',    icon: 'fa-pen',               label: () => 'Editar nombre',                              color: 'text-slate-200',   fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `abrirModalDeudor('${id}')` },
+            { k: 'eliminar',  icon: 'fa-trash',             label: () => 'Eliminar',                                   color: 'text-rose-400',    fuerte: 'bg-rose-600 hover:bg-rose-500 text-white', fn: id => `eliminarDeudor('${id}')` },
+        ];
+        // Ícono según el estado: pagado/pendiente y marcado por cuenta activo/inactivo
+        function iconOf(a, d) {
+            if (a.k === 'pagado') return d.pagado ? 'fa-circle-check' : 'fa-circle-check opacity-40';
+            if (a.k === 'modo') return d.modoCuentas ? 'fa-toggle-on' : 'fa-toggle-off';
+            return a.icon;
+        }
+        function leerFijos() {
+            try {
+                const v = localStorage.getItem('deudores_menu_fijos');
+                return v === null ? ['estimacion'] : JSON.parse(v);
+            } catch (e) { return []; }
+        }
+        window.alternarFijo = function (k, e) {
+            if (e) e.stopPropagation();
+            const fijos = leerFijos();
+            const i = fijos.indexOf(k);
+            if (i >= 0) fijos.splice(i, 1); else fijos.push(k);
+            localStorage.setItem('deudores_menu_fijos', JSON.stringify(fijos));
+            renderizar();
+        };
+        function filaFijadosDeudor(d) {
+            const fijos = leerFijos();
+            const fuertes = ACCIONES_DEUDOR.filter(a => fijos.includes(a.k)).map(a => `
+                <button onclick="event.stopPropagation(); ${a.fn(d.id)}" title="${a.label(d)}" class="${a.fuerte} w-7 h-7 rounded-md flex items-center justify-center shadow-sm transition active:scale-95"><i class="fa-solid ${iconOf(a, d)} text-[11px]"></i></button>`).join('');
+            return fuertes ? `<div class="flex items-center gap-1.5 pb-2 mb-2 border-b border-slate-700/60">${fuertes}</div>` : '';
+        }
+        function htmlAccionesDeudor(d) {
+            const fijos = leerFijos();
+            const abierto = window.menuAbierto === d.id;
+            const fuertes = ACCIONES_DEUDOR.filter(a => fijos.includes(a.k)).map(a => `
+                <button onclick="event.stopPropagation(); ${a.fn(d.id)}" title="${a.label(d)}" class="${a.fuerte} w-8 h-8 rounded-lg flex items-center justify-center shadow-sm transition active:scale-95"><i class="fa-solid ${iconOf(a, d)} text-xs"></i></button>`).join('');
+            const filas = ACCIONES_DEUDOR.map(a => {
+                const pin = fijos.includes(a.k);
+                return `<div class="flex items-center rounded-xl hover:bg-slate-700 active:bg-slate-700">
+                    <button onclick="event.stopPropagation(); ${a.fn(d.id)}" class="flex-1 text-left px-3 py-2 min-h-[40px] flex items-center gap-2.5 text-xs ${a.color}"><i class="fa-solid ${iconOf(a, d)} w-4 text-center"></i> ${a.label(d)}</button>
+                    <button onclick="alternarFijo('${a.k}', event)" title="${pin ? 'Quitar del botón fijo' : 'Fijar como botón'}" class="px-2.5 py-2 min-h-[40px] ${pin ? 'text-indigo-300' : 'text-slate-500'}"><i class="fa-solid fa-thumbtack text-xs"></i></button>
+                </div>`;
+            }).join('');
+            return `
+                <span class="relative">
+                    <button onclick="event.stopPropagation(); toggleMenuDeudor('${d.id}')" title="Más opciones" class="bg-transparent hover:bg-slate-700/40 active:bg-slate-700/60 text-slate-200 w-8 h-8 rounded-lg transition flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
+                    <span id="menuDeudor-${d.id}" data-burb="${leerBurbuja()}" onclick="event.stopPropagation()" class="${abierto ? '' : 'hidden'} absolute right-0 top-10 z-30 bg-slate-700 border border-slate-500 ring-1 ring-black/40 rounded-xl shadow-[0_14px_36px_-6px_rgba(0,0,0,0.75)] p-1 w-[235px] flex flex-col"><span class="burb-circ" style="position:absolute;top:-6px;right:18px;width:9px;height:9px;border-radius:50%;background:#334155;border:0.5px solid #64748b"></span><span class="burb-circ" style="position:absolute;top:-12px;right:30px;width:6px;height:6px;border-radius:50%;background:#334155;border:0.5px solid #64748b"></span><span class="burb-cola" style="position:absolute;top:-9px;right:18px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:9px solid #64748b"></span><span class="flecha-arr absolute -top-1.5 right-3 w-3 h-3 bg-slate-700 border-l border-t border-slate-500 rotate-45"></span><span class="flecha-aba hidden absolute -bottom-1.5 right-3 w-3 h-3 bg-slate-700 border-r border-b border-slate-500 rotate-45"></span>${filas}</span>
+                </span>`;
+        }
+        window.toggleMenuDeudor = function (id) {
+            window.menuAbierto = window.menuAbierto === id ? null : id;
+            renderizar();
+            posicionarMenuDeudor(window.menuAbierto);
+        };
+        function posicionarMenuDeudor(id) {
+            if (!id) return;
+            const m = document.getElementById('menuDeudor-' + id);
+            if (!m || m.classList.contains('hidden')) return;
+            const btn = m.parentElement.querySelector('button');
+            const espacioAbajo = window.innerHeight - btn.getBoundingClientRect().bottom;
+            const hacia_arriba = espacioAbajo < m.offsetHeight + 16;
+            m.classList.toggle('bottom-10', hacia_arriba);
+            m.classList.toggle('top-10', !hacia_arriba);
+            m.classList.toggle('top-auto', hacia_arriba);
+            m.querySelector('.flecha-arr').classList.toggle('hidden', hacia_arriba);
+            m.querySelector('.flecha-aba').classList.toggle('hidden', !hacia_arriba);
+        }
+        // ===== Estilo de burbuja del menú (se elige dentro del mismo menú) =====
+        const BURBUJAS = [
+            { k: 'triangulo', t: 'Punta' },
+            { k: 'nube', t: 'Nube' },
+            { k: 'comic', t: 'Cómic' },
+            { k: 'sombra', t: 'Sombra' },
+        ];
+        function leerBurbuja() {
+            return 'sombra';
+        }
+        function filaBurbuja() {
+            const actual = leerBurbuja();
+            return `<div class="flex gap-1 p-1 mb-1 rounded-lg bg-slate-800/70">${BURBUJAS.map(b => `
+                <button onclick="setBurbuja('${b.k}', event)" class="flex-1 text-[11px] py-1.5 rounded-md transition ${b.k === actual ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}">${b.t}</button>`).join('')}</div>`;
+        }
+        window.setBurbuja = function (estilo, e) {
+            if (e) e.stopPropagation();
+            localStorage.setItem('deudores_burbuja', estilo);
+            renderizar();
+            posicionarMenuDeudor(window.menuAbierto);
+        };
+        document.addEventListener('click', e => {
+            if (!window.menuAbierto) return;
+            if (e.target.closest('[id^="menuDeudor-"]') || e.target.closest('[onclick*="toggleMenuDeudor"]') || e.target.closest('[onclick*="alternarFijo"]')) return;
+            window.menuAbierto = null;
+            renderizar();
+        });
+    </script>
+
+    <script>
+        // ===== Estimación de deuda por deudor =====
+        document.body.insertAdjacentHTML('beforeend',
+            shellModal('modalEstimacion', 'cerrarEstimacion', 'Estimación', '<div id="estimacionBody" class="text-xs"></div>'));
+
+        window.cerrarEstimacion = function () {
+            const m = document.getElementById('modalEstimacion');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+
+        window.abrirEstimacion = function (id) {
+            const d = datosDeudores.find(x => x.id === id);
+            if (!d) return;
+            const $b = document.getElementById('estimacionBody');
+            const esCont = i => { const cero = i.cuotaAct === 0; const comp = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot; return !cero && !comp; };
+
+            // Cuentas: cuotas que faltan y valor de cada una
+            const cuentas = (d.items || []).filter(esCont).map(i => {
+                const act = i.cuotaAct || 0, tot = i.cuotaTot || 0;
+                const quedan = tot > 0 ? Math.max(0, tot - act) : 0;
+                const pagada = !!i.pagado;
+                const restante = tot > 0 ? i.monto * quedan : (pagada ? 0 : i.monto);
+                return { concepto: i.concepto, monto: i.monto, act, tot, quedan, pagada, restante };
+            });
+            const restanteTotal = cuentas.reduce((a, c) => a + c.restante, 0);
+            const mesesRestantes = cuentas.reduce((a, c) => Math.max(a, c.quedan), 0);
+            const pagoMensual = cuentas.filter(c => c.quedan > 0).reduce((a, c) => a + c.monto, 0);
+            const pendienteMes = subtotalDe(d) - cobradoDe(d);
+
+            // Fecha estimada de término
+            const [y0, m0] = claveMesActual.split('-').map(Number);
+            const fin = new Date(y0, (m0 - 1) + mesesRestantes, 1);
+            const fechaFin = mesesRestantes > 0 ? `${MESES_CORTOS[fin.getMonth()]} ${fin.getFullYear()}` : '—';
+
+            // Historial de meses de este deudor (para el gráfico)
+            const n = normTxt(d.nombre);
+            const meses = Object.keys(historialMeses).sort().map(k => {
+                const lista = historialMeses[k];
+                const m = Array.isArray(lista) ? lista.find(x => normTxt(x.nombre) === n) : null;
+                if (!m) return null;
+                const sub = subtotalDe(m), cob = cobradoDe(m);
+                return { k, sub, cob, pend: sub - cob };
+            }).filter(Boolean).slice(-6);
+            const maxMes = Math.max(1, ...meses.map(x => x.sub));
+            const cobradoHist = meses.reduce((a, x) => a + x.cob, 0);
+            const totalHist = meses.reduce((a, x) => a + x.sub, 0);
+            const pctHist = totalHist > 0 ? Math.round(cobradoHist / totalHist * 100) : 0;
+
+            const kpi = (titulo, valor, color) => `<div class="bg-slate-900/70 border border-slate-700/60 rounded-xl p-2.5">
+                <div class="text-[10px] uppercase tracking-wider text-slate-400">${titulo}</div>
+                <div class="font-mono font-bold text-sm ${color}">${valor}</div></div>`;
+
+            const barrasCuentas = cuentas.length ? cuentas.map(c => {
+                const pct = c.tot > 0 ? Math.round(c.act / c.tot * 100) : (c.pagada ? 100 : 0);
+                return `<div class="py-2 border-b border-slate-700/50">
+                    <div class="flex justify-between gap-2"><span class="font-bold text-slate-200 truncate">${esc(c.concepto)}</span><span class="font-mono text-slate-300 shrink-0">${formatearMoneda(c.monto)}</span></div>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <div class="flex-1 h-1.5 rounded-full bg-slate-900 overflow-hidden"><div class="h-full bg-indigo-500 rounded-full" style="width:${pct}%"></div></div>
+                        <span class="text-[10px] font-mono text-slate-400 shrink-0">${c.tot > 0 ? `${c.act}/${c.tot} · ${c.quedan} por pagar` : (c.pagada ? 'Pagada' : 'Pendiente')}</span>
+                    </div></div>`;
+            }).join('') : '<p class="text-slate-500 italic py-2">Sin cuentas.</p>';
+
+            const grafico = meses.length ? `<div class="flex items-end gap-2 h-28 pt-2">${meses.map(x => {
+                const hC = (x.cob / maxMes * 100).toFixed(1), hP = (x.pend / maxMes * 100).toFixed(1);
+                return `<div class="flex-1 flex flex-col items-center min-w-0" title="${x.k}: cobrado ${formatearMoneda(x.cob)}, pendiente ${formatearMoneda(x.pend)}">
+                    <div class="w-full h-24 flex flex-col justify-end rounded-t overflow-hidden">
+                        <div style="height:${hP}%" class="bg-indigo-500/70"></div>
+                        <div style="height:${hC}%" class="bg-emerald-500"></div>
+                    </div>
+                    <span class="text-[9px] font-mono text-slate-400 mt-1">${MESES_CORTOS[Number(x.k.split('-')[1]) - 1]}</span></div>`;
+            }).join('')}</div>
+            <div class="flex gap-3 text-[10px] text-slate-400 mt-2"><span><i class="fa-solid fa-square text-emerald-500"></i> Cobrado</span><span><i class="fa-solid fa-square text-indigo-500/70"></i> Pendiente</span></div>`
+            : '<p class="text-slate-500 italic py-2">Sin historial de meses.</p>';
+
+            $b.innerHTML = `
+                <p class="text-slate-300 font-bold mb-3 truncate">${esc(d.nombre)}</p>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    ${kpi('Pendiente este mes', formatearMoneda(pendienteMes), 'text-rose-300')}
+                    ${kpi('Restante total', formatearMoneda(restanteTotal), 'text-indigo-300')}
+                    ${kpi('Meses para terminar', mesesRestantes || '—', 'text-slate-100')}
+                    ${kpi('Término estimado', fechaFin, 'text-emerald-400')}
+                </div>
+                <div class="flex justify-between text-[11px] text-slate-400 mb-3"><span>Pago mensual de sus cuotas</span><span class="font-mono text-slate-200">${formatearMoneda(pagoMensual)}</span></div>
+                <h4 class="text-xs font-semibold text-slate-200 mb-1">Avance por cuenta</h4>
+                <div class="mb-3">${barrasCuentas}</div>
+                <h4 class="text-xs font-semibold text-slate-200 mb-1">Últimos meses</h4>
+                ${grafico}
+                <div class="grid grid-cols-2 gap-2 mt-3 text-center">
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Cobrado histórico</div><div class="font-mono font-bold text-emerald-400">${formatearMoneda(cobradoHist)}</div></div>
+                    <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">Avance histórico</div><div class="font-mono font-bold text-slate-200">${pctHist}%</div></div>
+                </div>`;
+
+            const m = document.getElementById('modalEstimacion');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+    </script>
+
+    <script>
+        // Si la hoja de acciones (+) está abierta y se desliza la página, se cierra
+        (function () {
+            let y0 = null;
+            const sheetAbierta = () => {
+                const sh = document.getElementById('menuSheet');
+                return !!sh && sh.classList.contains('is-open');
+            };
+            const dentroDeMenu = t => !!(t && t.closest && (t.closest('#menuSheet') || t.closest('#dockNav')));
+            document.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+            document.addEventListener('touchmove', e => {
+                if (!sheetAbierta() || y0 === null || dentroDeMenu(e.target)) return;
+                if (Math.abs(e.touches[0].clientY - y0) > 12) cerrarMenuAcciones();
+            }, { passive: true });
+            document.addEventListener('wheel', e => {
+                if (sheetAbierta() && !dentroDeMenu(e.target)) cerrarMenuAcciones();
+            }, { passive: true });
+        })();
+    </script>
+
+    <script>
+
+    </script>
+
+    <script>
+        // ===== Mantener presionado un deudor: menú tipo iPhone =====
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modalMantener" class="modal-overlay fixed inset-0 hidden items-center justify-center p-5 z-[60]" style="background: rgba(15,23,42,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);" onclick="if(event.target===this)cerrarMantener()">
+                <div class="mant-panel w-full max-w-xs flex flex-col gap-2.5">
+                    <div id="mantPreview" class="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 shadow-xl"></div>
+                    <div id="mantAcciones" class="bg-slate-800/95 border border-slate-700 rounded-2xl overflow-hidden divide-y divide-slate-700/70 shadow-2xl"></div>
+                </div>
+            </div>`);
+
+        window.cerrarMantener = function () {
+            const m = document.getElementById('modalMantener');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirMantener = function (id) {
+            const d = datosDeudores.find(x => x.id === id);
+            if (!d) return;
+            const pendiente = subtotalDe(d) - cobradoDe(d);
+            document.getElementById('mantPreview').innerHTML = `
+                <p class="font-black text-sm text-slate-100 truncate">${esc(d.nombre)}</p>
+                <p class="text-xs font-mono ${d.pagado ? 'text-emerald-400' : 'text-indigo-300'}">${d.pagado ? 'Pagado' : 'Pendiente ' + formatearMoneda(pendiente)}</p>`;
+            document.getElementById('mantAcciones').innerHTML = ACCIONES_DEUDOR.map(a => `
+                <button onclick="cerrarMantener(); ${a.fn(d.id)}" class="w-full flex items-center justify-start gap-3 px-4 py-3.5 text-sm active:bg-slate-700/60 ${a.color}">
+                    <i class="fa-solid ${iconOf(a, d)} w-5 text-center"></i><span>${a.label(d)}</span>
+                </button>`).join('');
+            const m = document.getElementById('modalMantener');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+
+        // Detectar la pulsación prolongada sobre una tarjeta
+        (function () {
+            let timer = null, x0 = 0, y0 = 0, idActual = null, suprimirClick = false;
+            const cancelar = () => { clearTimeout(timer); timer = null; };
+            document.addEventListener('touchstart', e => {
+                suprimirClick = false;
+                if (e.target.closest('button, input, select, textarea, a, [data-item-id]')) return;
+                const card = e.target.closest('[data-deudor-id]');
+                if (!card) return;
+                idActual = card.dataset.deudorId;
+                x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+                timer = setTimeout(() => {
+                    suprimirClick = true;
+                    if (navigator.vibrate) navigator.vibrate(12);
+                    abrirMantener(idActual);
+                }, 450);
+            }, { passive: true });
+            document.addEventListener('touchmove', e => {
+                if (timer && (Math.abs(e.touches[0].clientX - x0) > 10 || Math.abs(e.touches[0].clientY - y0) > 10)) cancelar();
+            }, { passive: true });
+            document.addEventListener('touchend', () => cancelar(), { passive: true });
+            document.addEventListener('touchcancel', () => cancelar(), { passive: true });
+            // Evitar que la pulsación prolongada también abra o cierre el deudor
+            document.addEventListener('click', e => {
+                if (!suprimirClick) return;
+                suprimirClick = false;
+                e.stopPropagation(); e.preventDefault();
+            }, true);
+        })();
+    </script>
+
+    <script>
+        // ===== Búsquedas recientes (mantener presionada la lupa) =====
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modalBusquedas" class="modal-overlay fixed inset-0 hidden items-center justify-center p-5 z-[60]" style="background: rgba(15,23,42,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);" onclick="if(event.target===this)cerrarBusquedas()">
+                <div class="mant-panel w-full max-w-xs bg-slate-800/95 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                    <p class="px-4 pt-3 pb-2 text-xs font-bold text-slate-300">Búsquedas recientes</p>
+                    <div id="listaBusquedas" class="divide-y divide-slate-700/70 max-h-[50vh] overflow-y-auto"></div>
+                    <button onclick="borrarBusquedas()" class="w-full px-4 py-3 text-xs text-rose-400 border-t border-slate-700/70 active:bg-slate-700/60">Borrar historial</button>
+                </div>
+            </div>`);
+
+        function leerBusquedas() {
+            try { return JSON.parse(localStorage.getItem('deudores_busquedas') || '[]'); } catch (e) { return []; }
+        }
+        function guardarBusqueda(q) {
+            q = (q || '').trim();
+            if (q.length < 2) return;
+            const lista = [q].concat(leerBusquedas().filter(x => normTxt(x) !== normTxt(q))).slice(0, 8);
+            localStorage.setItem('deudores_busquedas', JSON.stringify(lista));
+        }
+        window.cerrarBusquedas = function () {
+            const m = document.getElementById('modalBusquedas');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirBusquedas = function () {
+            const lista = leerBusquedas();
+            window.busquedasActuales = lista;
+            document.getElementById('listaBusquedas').innerHTML = lista.length
+                ? lista.map((q, i) => `<button onclick="usarBusquedaIdx(${i})" class="w-full text-left px-4 py-3 text-sm text-slate-200 active:bg-slate-700/60 flex items-center gap-3"><i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>${esc(q)}</button>`).join('')
+                : '<p class="px-4 py-3 text-xs text-slate-500 italic">Todavía no hay búsquedas.</p>';
+            const m = document.getElementById('modalBusquedas');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+        window.usarBusquedaIdx = function (i) {
+            const q = (window.busquedasActuales || [])[i];
+            if (q === undefined) return;
+            const inp = document.getElementById('inputBuscar');
+            inp.value = q;
+            if (typeof toggleBotonBorrarBusqueda === 'function') toggleBotonBorrarBusqueda();
+            renderizar();
+            cerrarBusquedas();
+        };
+        window.borrarBusquedas = function () {
+            localStorage.removeItem('deudores_busquedas');
+            abrirBusquedas();
+        };
+
+        (function () {
+            const inp = document.getElementById('inputBuscar');
+            if (inp) {
+                inp.addEventListener('blur', () => guardarBusqueda(inp.value));
+                inp.addEventListener('keydown', e => { if (e.key === 'Enter') guardarBusqueda(inp.value); });
+            }
+            const btn = document.querySelector('#dockNav [data-tab="buscar"]');
+            if (!btn) return;
+            let timer = null, suprimir = false;
+            btn.addEventListener('touchstart', () => {
+                suprimir = false;
+                timer = setTimeout(() => {
+                    suprimir = true;
+                    if (navigator.vibrate) navigator.vibrate(12);
+                    abrirBusquedas();
+                }, 450);
+            }, { passive: true });
+            ['touchend', 'touchmove', 'touchcancel'].forEach(ev =>
+                btn.addEventListener(ev, () => clearTimeout(timer), { passive: true }));
+            // Si fue pulsación prolongada, no ejecutar la acción normal del botón
+            document.addEventListener('click', e => {
+                if (suprimir && e.target.closest && e.target.closest('#dockNav [data-tab="buscar"]')) {
+                    suprimir = false;
+                    e.stopPropagation(); e.preventDefault();
+                }
+            }, true);
+        })();
+    </script>
+
+    <script>
+        // ===== Mantener presionado un gasto: editar o eliminar =====
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modalGasto" class="modal-overlay fixed inset-0 hidden items-center justify-center p-5 z-[60]" style="background: rgba(15,23,42,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);" onclick="if(event.target===this)cerrarGasto()">
+                <div class="mant-panel w-full max-w-xs bg-slate-800/95 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                    <p id="gastoTitulo" class="px-4 pt-3 pb-2 text-xs font-bold text-slate-300 truncate"></p>
+                    <div id="gastoAcciones" class="divide-y divide-slate-700/70"></div>
+                </div>
+            </div>`);
+
+        window.cerrarGasto = function () {
+            const m = document.getElementById('modalGasto');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirGasto = function (deudorId, itemId) {
+            const d = datosDeudores.find(x => x.id === deudorId);
+            const it = d && d.items.find(x => x.id === itemId);
+            if (!it) return;
+            document.getElementById('gastoTitulo').textContent = it.concepto + ' · ' + d.nombre;
+            document.getElementById('gastoAcciones').innerHTML = `
+                <button onclick="cerrarGasto(); abrirModalItem('${deudorId}', '${itemId}')" class="w-full flex items-center justify-between px-4 py-3.5 text-sm text-slate-200 active:bg-slate-700/60"><span>Editar gasto</span><i class="fa-solid fa-pen w-5 text-center"></i></button>
+                <button onclick="cerrarGasto(); eliminarItem('${deudorId}', '${itemId}')" class="w-full flex items-center justify-between px-4 py-3.5 text-sm text-rose-400 active:bg-slate-700/60"><span>Eliminar gasto</span><i class="fa-solid fa-trash w-5 text-center"></i></button>`;
+            const m = document.getElementById('modalGasto');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+
+        (function () {
+            let timer = null, x0 = 0, y0 = 0, suprimir = false;
+            const cancelar = () => { clearTimeout(timer); timer = null; };
+            document.addEventListener('touchstart', e => {
+                suprimir = false;
+                const fila = e.target.closest('[data-item-id]');
+                if (!fila || e.target.closest('button, input, select, textarea, a')) return;
+                const dId = fila.dataset.itemDeudor, iId = fila.dataset.itemId;
+                x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+                timer = setTimeout(() => {
+                    suprimir = true;
+                    if (navigator.vibrate) navigator.vibrate(12);
+                    abrirGasto(dId, iId);
+                }, 450);
+            }, { passive: true });
+            document.addEventListener('touchmove', e => {
+                if (timer && (Math.abs(e.touches[0].clientX - x0) > 10 || Math.abs(e.touches[0].clientY - y0) > 10)) cancelar();
+            }, { passive: true });
+            document.addEventListener('touchend', cancelar, { passive: true });
+            document.addEventListener('touchcancel', cancelar, { passive: true });
+            document.addEventListener('click', e => {
+                if (!suprimir) return;
+                suprimir = false;
+                e.stopPropagation(); e.preventDefault();
+            }, true);
+        })();
+    </script>
+
+    <script>
+        // Tocar fuera de un menú abierto solo lo cierra, sin ejecutar lo que había debajo
+        document.addEventListener('click', e => {
+            const t = e.target;
+            // Si hay una ventana flotante abierta, el menú de tres puntos se cierra en silencio
+            // y la ventana flotante se cierra con su propio toque fuera
+            const ventanaAbierta = [...document.querySelectorAll('.modal-overlay')].some(m => !m.classList.contains('hidden'));
+            if (ventanaAbierta) {
+                if (window.menuAbierto) { window.menuAbierto = null; renderizar(); }
+                return;
+            }
+            if (window.menuAbierto) {
+                const dentro = t.closest && (t.closest('[id^="menuDeudor-"]') || t.closest('[onclick*="toggleMenuDeudor"]'));
+                if (!dentro) {
+                    window.menuAbierto = null;
+                    renderizar();
+                    e.stopPropagation(); e.preventDefault();
+                    return;
+                }
+            }
+            const sh = document.getElementById('menuSheet');
+            if (sh && sh.classList.contains('is-open')) {
+                const dentroSh = t.closest && (t.closest('#menuSheet') || t.closest('[onclick*="alternarMenuAcciones"]'));
+                if (!dentroSh) {
+                    cerrarMenuAcciones();
+                    e.stopPropagation(); e.preventDefault();
+                }
+            }
+        }, true);
+    </script>
+
+    <script>
+        // ===== Papelera de deudores eliminados =====
+        document.body.insertAdjacentHTML('beforeend',
+            shellModal('modalPapelera', 'cerrarPapelera', 'Papelera de deudores', '<div id="papeleraBody" class="text-xs"></div>'));
+
+        function leerPapelera() {
+            try { return JSON.parse(localStorage.getItem('deudores_papelera') || '[]'); } catch (e) { return []; }
+        }
+        function guardarPapeleraLista(lista) {
+            try { localStorage.setItem('deudores_papelera', JSON.stringify(lista.slice(0, 100))); } catch (e) {}
+        }
+        window.cerrarPapelera = function () {
+            const m = document.getElementById('modalPapelera');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirPapelera = function () {
+            renderPapelera();
+            const m = document.getElementById('modalPapelera');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+        function renderPapelera() {
+            const lista = leerPapelera();
+            const body = document.getElementById('papeleraBody');
+            if (!lista.length) {
+                body.innerHTML = '<p class="text-slate-500 italic py-3">La papelera está vacía.</p>';
+                return;
+            }
+            body.innerHTML = lista.map((it, i) => {
+                const [y, m] = it.mes.split('-');
+                const f = new Date(it.ts);
+                return `<div class="py-2.5 border-b border-slate-700/50 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="font-bold text-slate-200 truncate">${esc(it.deudor.nombre)}</p>
+                        <p class="text-[10px] text-slate-400">${MESES_CORTOS[Number(m) - 1]} ${y} · eliminado ${f.toLocaleDateString('es-CL')}</p>
+                    </div>
+                    <div class="flex gap-1.5 shrink-0">
+                        <button onclick="restaurarDeudorPapelera(${i})" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-medium">Restaurar</button>
+                        <button onclick="borrarDefinitivoPapelera(${i})" class="px-2 py-1.5 rounded-lg border border-rose-500/40 text-rose-400 text-[11px]" title="Borrar para siempre"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('') + `<button onclick="vaciarPapelera()" class="w-full mt-3 text-[11px] text-rose-400 py-2">Vaciar papelera</button>`;
+        }
+        window.restaurarDeudorPapelera = function (i) {
+            const lista = leerPapelera();
+            const it = lista[i];
+            if (!it) return;
+            const mes = it.mes;
+            const d = it.deudor;
+            if (!historialMeses[mes]) historialMeses[mes] = [];
+            if (historialMeses[mes].some(x => x.id === d.id)) d.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            historialMeses[mes].push(d);
+            lista.splice(i, 1);
+            guardarPapeleraLista(lista);
+            cargarDatosMesActual();
+            guardarDatos();
+            renderPapelera();
+            mostrarToast(`Deudor ${d.nombre} restaurado.`);
+        };
+        window.borrarDefinitivoPapelera = function (i) {
+            const lista = leerPapelera();
+            const it = lista[i];
+            if (!it) return;
+            mostrarModalConfirmacion('Borrar definitivamente', `¿Borrar para siempre a "${it.deudor.nombre}"? No se puede recuperar.`, 'fa-trash-can', () => {
+                const l = leerPapelera();
+                l.splice(i, 1);
+                guardarPapeleraLista(l);
+                renderPapelera();
+            });
+        };
+        window.vaciarPapelera = function () {
+            if (!leerPapelera().length) return;
+            mostrarModalConfirmacion('Vaciar papelera', '¿Borrar para siempre todos los deudores de la papelera?', 'fa-trash-can', () => {
+                guardarPapeleraLista([]);
+                renderPapelera();
+            });
+        };
+    </script>
+
+    <script>
+        // ===== Desplegar o contraer todos los deudores =====
+        window.toggleDesplegarTodos = function () {
+            const ids = datosDeudores.map(d => d.id);
+            const todos = ids.length > 0 && ids.every(id => window.deudoresAbiertos.has(id));
+            window.deudoresAbiertos.clear();
+            if (!todos) ids.forEach(id => window.deudoresAbiertos.add(id));
+            renderizar();
+        };
+        (function () {
+            const base = renderizar;
+            renderizar = function () {
+                base();
+                const b = document.getElementById('btnDesplegarTodos');
+                if (!b) return;
+                const ids = datosDeudores.map(d => d.id);
+                const todos = ids.length > 0 && ids.every(id => window.deudoresAbiertos.has(id));
+                b.querySelector('i').className = 'fa-solid ' + (todos ? 'fa-angles-up' : 'fa-angles-down') + ' text-xs';
+                b.title = todos ? 'Contraer todos' : 'Desplegar todos';
+            };
+        })();
+    </script>
+
+    <script>
+        // El filtro de deudores ahora abre la ventana con diseño de la app
+        (function () {
+            const base = renderizar;
+            renderizar = function () {
+                base();
+                const sel = document.getElementById('filtroDeudor');
+                const txt = document.getElementById('txtFiltroDeudor');
+                if (sel && txt && sel.selectedIndex >= 0) txt.textContent = sel.options[sel.selectedIndex].text;
+            };
+        })();
+    </script>
+
+    <script>
+
+    </script>
+
+    <script>
+        // ===== Estilo del aviso de notificación (se elige desde la hoja de acciones) =====
+        document.body.insertAdjacentHTML('beforeend',
+            shellModal('modalAviso', 'cerrarAviso', 'Estilo del aviso', '<div id="avisoBody" class="flex flex-col gap-1.5 text-xs"></div>'));
+        const ESTILOS_AVISO = [
+            { k: 'pildora', t: 'Píldora', d: 'Verde, centrada arriba del menú' },
+            { k: 'tarjeta', t: 'Tarjeta', d: 'Ancha, con borde y botón deshacer' },
+            { k: 'cristal', t: 'Cristal', d: 'Translúcida con desenfoque' },
+            { k: 'barra', t: 'Barra', d: 'Franja de ancho completo' },
+        ];
+        function leerAviso() {
+            const v = localStorage.getItem('deudores_aviso');
+            return ESTILOS_AVISO.some(e => e.k === v) ? v : 'pildora';
+        }
+        function aplicarAviso() {
+            const t = document.getElementById('toastNotificacion');
+            if (t) t.dataset.aviso = 'cristal';
+        }
+        window.abrirAviso = function () {
+            const actual = leerAviso();
+            document.getElementById('avisoBody').innerHTML = ESTILOS_AVISO.map(e => `
+                <button onclick="elegirAviso('${e.k}')" class="w-full text-left px-3 py-2.5 rounded-xl border flex items-center justify-between gap-3 ${e.k === actual ? 'bg-indigo-600/25 border-indigo-500 text-indigo-100' : 'bg-slate-900/60 border-slate-700/60 text-slate-200 hover:border-indigo-500/60'}">
+                    <span><span class="block font-semibold text-sm">${e.t}</span><span class="block text-[11px] text-slate-400">${e.d}</span></span>
+                    ${e.k === actual ? '<i class="fa-solid fa-check text-indigo-300"></i>' : ''}
+                </button>`).join('');
+            const m = document.getElementById('modalAviso');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+        window.cerrarAviso = function () {
+            const m = document.getElementById('modalAviso');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.elegirAviso = function (k) {
+            localStorage.setItem('deudores_aviso', k);
+            aplicarAviso();
+            cerrarAviso();
+            mostrarToast('Así se ve el aviso', { deshacer: false });
+        };
+        aplicarAviso();
+    </script>
+
+    <script>
+        // ===== Filtro por estado de cuotas =====
+        window.filtroCuotasVal = 'todos';
+        const ETIQ_CUOTAS = { todos: 'Todas las cuotas', futuras: 'Futuras', ultimas: 'Últimas cuotas', finalizadas: 'Finalizadas' };
+        const ORDEN_CUOTAS = ['todos', 'futuras', 'ultimas', 'finalizadas'];
+        window.cicloFiltroCuotas = function () {
+            const i = ORDEN_CUOTAS.indexOf(window.filtroCuotasVal);
+            window.filtroCuotasVal = ORDEN_CUOTAS[(i + 1) % ORDEN_CUOTAS.length];
+            renderizar();
+        };
+        (function () {
+            const base = renderizar;
+            renderizar = function () {
+                base();
+                const t = document.getElementById('txtFiltroCuotas');
+                const b = document.getElementById('btnFiltroCuotas');
+                if (t) t.textContent = ETIQ_CUOTAS[window.filtroCuotasVal] || ETIQ_CUOTAS.todos;
+                if (b) b.classList.toggle('border-indigo-500', window.filtroCuotasVal !== 'todos');
+            };
+        })();
+    </script>
+
+    <script>
+        // ===== Filtro de cuotas en ventana flotante =====
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modalFiltroCuotas" class="modal-overlay fixed inset-0 hidden items-center justify-center p-5 z-[60]" style="background: rgba(15,23,42,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);" onclick="if(event.target===this)cerrarFiltroCuotas()">
+                <div class="mant-panel w-full max-w-xs bg-slate-800/95 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                    <p class="px-4 pt-3 pb-2 text-xs font-bold text-slate-300">Filtrar por cuotas</p>
+                    <div id="listaFiltroCuotas" class="divide-y divide-slate-700/70"></div>
+                </div>
+            </div>`);
+        window.cerrarFiltroCuotas = function () {
+            const m = document.getElementById('modalFiltroCuotas');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirFiltroCuotas = function () {
+            document.getElementById('listaFiltroCuotas').innerHTML = ORDEN_CUOTAS.map(k => `
+                <button onclick="elegirFiltroCuotas('${k}')" class="w-full flex items-center justify-between px-4 py-3.5 text-sm active:bg-slate-700/60 ${k === window.filtroCuotasVal ? 'text-indigo-300' : 'text-slate-200'}">
+                    <span>${ETIQ_CUOTAS[k]}</span>
+                    ${k === window.filtroCuotasVal ? '<i class="fa-solid fa-check"></i>' : ''}
+                </button>`).join('');
+            const m = document.getElementById('modalFiltroCuotas');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+        window.elegirFiltroCuotas = function (k) {
+            window.filtroCuotasVal = k;
+            if (k !== 'todos') {
+                window.deudoresAbiertos.clear();
+                datosDeudores.forEach(d => window.deudoresAbiertos.add(d.id));
+            }
+            cerrarFiltroCuotas();
+            renderizar();
         };
     </script>
 </body>
