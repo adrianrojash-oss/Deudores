@@ -248,6 +248,9 @@
         #toastNotificacion[data-aviso="barra"] { left: 0 !important; right: 0 !important; width: auto !important; max-width: none !important; transform: none !important; border-radius: 0 !important; background: #1e293b !important; color: #e2e8f0 !important; border: 0 !important; border-top: 0.5px solid #334155 !important; justify-content: space-between !important; padding: 12px 16px !important; }
         #toastNotificacion[data-aviso="barra"] { bottom: calc(env(safe-area-inset-bottom, 0px) + 88px) !important; }
         #modalFiltroCuotas:not(.hidden) .mant-panel { animation: mantIn .22s cubic-bezier(.2,.9,.3,1.1); }
+        @keyframes brilloTitila { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .fila-restaurada { position: relative; isolation: isolate; }
+        .fila-restaurada::before { content: ''; position: absolute; inset: -2px -10px; border-radius: 12px; background: rgba(45,212,191,.16); box-shadow: 0 0 18px 3px rgba(45,212,191,.55); z-index: -1; pointer-events: none; animation: brilloTitila .8s ease-in-out 4; }
     </style>
     <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
 </head>
@@ -264,7 +267,7 @@
                         </div>
                         <div class="min-w-0">
                             <h1 class="text-base sm:text-xl font-bold text-white flex flex-wrap items-center gap-x-2 gap-y-1 leading-tight">
-                                <span>Control de deudores</span>
+                                <span>Deudores</span>
                                 <span id="mesBadge" class="bg-indigo-900/60 text-indigo-300 text-[9px] sm:text-xs px-2 py-0.5 rounded-full border border-indigo-500/40 font-mono uppercase shrink-0">SEPTIEMBRE</span>
                             </h1>
                             <p class="text-[11px] text-slate-400 hidden sm:block">Control automático de cuotas, saldos e historial mensual en Supabase.</p>
@@ -274,7 +277,7 @@
                     <!-- Supabase Sync Indicator Badge -->
                     <div id="cloudStatusBadge" onclick="abrirModalConfigSupabase()" class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700/80 px-2 py-1 rounded-xl text-[10px] font-mono text-slate-300 shadow-inner shrink-0 cursor-pointer hover:border-indigo-500 transition" title="Haz clic para configurar Supabase">
                         <span id="cloudDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                        <span id="cloudText" class="hidden sm:inline truncate text-[10px]">Conectando...</span>
+                        <span id="cloudText" class="text-[10px] whitespace-nowrap">Conectando...</span>
                     </div>
                 </div>
 
@@ -531,7 +534,7 @@
     </div>
 
     <!-- MODAL CONFIRMACION PERSONALIZADO -->
-    <div id="modalConfirmacion" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+    <div id="modalConfirmacion" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-[80]">
         <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-modal">
             <div class="flex items-center gap-3 mb-3 text-rose-400">
                 <div class="bg-rose-500/20 p-2.5 rounded-xl border border-rose-500/30">
@@ -1799,7 +1802,7 @@
                     const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
                     let detalleCuota = "";
                     if (i.cuotaTot) {
-                        detalleCuota = ` - ${i.cuotaAct !== null ? i.cuotaAct : 0}/${i.cuotaTot}`;
+                        detalleCuota = ` - ${Math.min(i.cuotaAct !== null ? i.cuotaAct : 0, i.cuotaTot)}/${i.cuotaTot}`;
                     }
 
                     if (esCuotaCero) {
@@ -1835,7 +1838,7 @@
                 const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
                 let detalleCuota = "";
                 if (i.cuotaTot) {
-                    detalleCuota = ` (Cuota ${i.cuotaAct !== null ? i.cuotaAct : 0}/${i.cuotaTot})`;
+                    detalleCuota = ` (Cuota ${Math.min(i.cuotaAct !== null ? i.cuotaAct : 0, i.cuotaTot)}/${i.cuotaTot})`;
                 }
 
                 if (esCuotaCero) {
@@ -1934,7 +1937,7 @@
                 d.items.forEach(i => {
                     const esCuotaCero = i.cuotaAct === 0;
                     const esCuotaCompletada = i.cuotaTot && i.cuotaTot > 0 && i.cuotaAct > i.cuotaTot;
-                    let estadoCuota = i.cuotaTot ? `${i.cuotaAct !== null ? i.cuotaAct : 0}/${i.cuotaTot}` : '-';
+                    let estadoCuota = i.cuotaTot ? `${Math.min(i.cuotaAct !== null ? i.cuotaAct : 0, i.cuotaTot)}/${i.cuotaTot}` : '-';
                     let nota = '';
 
                     if (esCuotaCero) {
@@ -2500,7 +2503,7 @@
                 const est = d.pagado ? 'Pagado' : 'Pendiente';
                 if (d.items.length === 0) filas.push([d.nombre, '', '', '', est]);
                 d.items.forEach(i => {
-                    filas.push([d.nombre, i.concepto, i.monto, i.cuotaTot ? `${i.cuotaAct || 0}/${i.cuotaTot}` : '', est]);
+                    filas.push([d.nombre, i.concepto, i.monto, i.cuotaTot ? `${Math.min(i.cuotaAct || 0, i.cuotaTot)}/${i.cuotaTot}` : '', est]);
                 });
             });
             // Separador ";" para que Excel en configuración en español lo abra en columnas
@@ -3032,7 +3035,10 @@
                         add(d, 'Cuenta modificada: ' + i.concepto);
                 });
                 (p.items || []).forEach(pi => {
-                    if (!(d.items || []).some(i => i.id === pi.id)) add(d, 'Cuenta eliminada: ' + pi.concepto);
+                    if (!(d.items || []).some(i => i.id === pi.id)) {
+                        add(d, 'Cuenta eliminada: ' + pi.concepto);
+                        window._cuentasEliminadasTmp.push({ nombre: d.nombre, mes: clave, item: pi, finalizada: !!(pi.cuotaTot && pi.cuotaAct >= pi.cuotaTot) });
+                    }
                 });
             });
             prev.forEach(p => { if (!cm.has(p.id)) add(p, 'Deudor eliminado'); });
@@ -3052,7 +3058,11 @@
             const prevJSON = estadoBase;
             const cambio = prevJSON !== null && !deshaciendo && JSON.stringify(historialMeses) !== prevJSON;
             _registrarBase6();
-            if (cambio) agregarLogDeudores(registrarCambiosDeudores(prevJSON, historialMeses));
+            if (cambio) {
+                window._cuentasEliminadasTmp = [];
+                agregarLogDeudores(registrarCambiosDeudores(prevJSON, historialMeses));
+                guardarCuentasEliminadas(window._cuentasEliminadasTmp);
+            }
         };
 
         const _abrirHistBase6 = window.abrirHistorial;
@@ -3106,6 +3116,7 @@
             { k: 'pagado',    icon: 'fa-check',             label: d => d.pagado ? 'Desmarcar pagado' : 'Marcar como pagado', color: 'text-emerald-400', fuerte: 'bg-emerald-600 hover:bg-emerald-500 text-white', fn: id => `togglePagadoDeudor('${id}')` },
             { k: 'modo',      icon: 'fa-list-check',        label: d => d.modoCuentas ? 'Desactivar marcado por cuenta' : 'Activar marcado por cuenta', color: 'text-indigo-300', fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `toggleModoCuentas('${id}')` },
             { k: 'copiar',    icon: 'fa-copy',              label: () => 'Copiar resumen',                             color: 'text-green-400',   fuerte: 'bg-green-600 hover:bg-green-500 text-white', fn: id => `exportarWhatsAppDeudor('${id}')` },
+            { k: 'papelera', icon: 'fa-box-archive', label: () => 'Papelera de cuentas', color: 'text-slate-200', fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `abrirPapeleraCuentas('${id}')` },
             { k: 'historial', icon: 'fa-clock-rotate-left', label: () => 'Historial',                                  color: 'text-slate-200',   fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `abrirHistorial('${id}')` },
             { k: 'editar',    icon: 'fa-pen',               label: () => 'Editar nombre',                              color: 'text-slate-200',   fuerte: 'bg-slate-600 hover:bg-slate-500 text-white', fn: id => `abrirModalDeudor('${id}')` },
             { k: 'eliminar',  icon: 'fa-trash',             label: () => 'Eliminar',                                   color: 'text-rose-400',    fuerte: 'bg-rose-600 hover:bg-rose-500 text-white', fn: id => `eliminarDeudor('${id}')` },
@@ -3755,6 +3766,139 @@
             cerrarFiltroCuotas();
             renderizar();
         };
+    </script>
+
+    <script>
+        // ===== Papelera de cuentas por deudor =====
+        document.body.insertAdjacentHTML('beforeend',
+            shellModal('modalPapCuentas', 'cerrarPapCuentas', 'Papelera de cuentas', '<div id="papCuentasBody" class="text-xs"></div>'));
+
+        function leerPapCuentas() {
+            try { return JSON.parse(localStorage.getItem('deudores_papelera_cuentas') || '[]'); } catch (e) { return []; }
+        }
+        function guardarPapCuentas(lista) {
+            try { localStorage.setItem('deudores_papelera_cuentas', JSON.stringify(lista.slice(0, 300))); } catch (e) {}
+        }
+        window.guardarCuentasEliminadas = function (entradas) {
+            if (!entradas || !entradas.length) return;
+            const ts = Date.now();
+            const lista = leerPapCuentas();
+            entradas.forEach(e => lista.unshift({ id: ts.toString(36) + Math.random().toString(36).slice(2, 7), nombre: e.nombre, mes: e.mes, ts, item: e.item, finalizada: e.finalizada }));
+            guardarPapCuentas(lista);
+        };
+        window.cerrarPapCuentas = function () {
+            const m = document.getElementById('modalPapCuentas');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirPapeleraCuentas = function (id) {
+            window.papCuentasDeudorId = id;
+            renderPapCuentas();
+            const m = document.getElementById('modalPapCuentas');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+        function renderPapCuentas() {
+            const d = datosDeudores.find(x => x.id === window.papCuentasDeudorId) || { nombre: '' };
+            const clave = normTxt(d.nombre);
+            const entradas = leerPapCuentas().filter(e => normTxt(e.nombre) === clave);
+            document.getElementById('modalPapCuentasTitulo').textContent = 'Papelera · ' + d.nombre;
+            const body = document.getElementById('papCuentasBody');
+            if (!entradas.length) {
+                body.innerHTML = '<p class="text-slate-500 italic py-3">No hay cuentas eliminadas de este deudor.</p>';
+                return;
+            }
+            body.innerHTML = `<p class="text-[11px] text-slate-500 mb-2">Se muestra la fecha en que se eliminó la cuenta.</p>` + entradas.map(e => {
+                const it = e.item;
+                const [y, m] = e.mes.split('-');
+                const cuota = it.cuotaTot ? `${Math.min(it.cuotaAct || 0, it.cuotaTot)}/${it.cuotaTot}` : '';
+                const estado = e.finalizada
+                    ? '<span class="text-emerald-400 text-[10px] font-semibold">Finalizada</span>'
+                    : '<span class="text-rose-300 text-[10px] font-semibold">Eliminada</span>';
+                return `<div class="py-2.5 border-b border-slate-700/50 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="font-bold text-slate-200 truncate">${esc(it.concepto)} ${estado}</p>
+                        <p class="text-[10px] text-slate-400 font-mono">${formatearMoneda(it.monto)}${cuota ? ' · cuota ' + cuota : ''} · ${MESES_CORTOS[Number(m) - 1]} ${y}</p>
+                        <p class="text-[10px] text-slate-500">Eliminada el ${new Date(e.ts).toLocaleDateString('es-CL')}</p>
+                    </div>
+                    <div class="flex gap-1.5 shrink-0">
+                        <button onclick="restaurarCuentaPapelera('${e.id}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-medium">Restaurar</button>
+                        <button onclick="borrarCuentaPapelera('${e.id}')" class="px-2 py-1.5 rounded-lg border border-rose-500/40 text-rose-400 text-[11px]" title="Borrar para siempre"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        window.restaurarCuentaPapelera = function (eid) {
+            const lista = leerPapCuentas();
+            const e = lista.find(x => x.id === eid);
+            if (!e) return;
+            // 1) Devolver la cuenta al mes donde se eliminó
+            if (!historialMeses[e.mes]) historialMeses[e.mes] = [];
+            const listaMes = historialMeses[e.mes];
+            let d = listaMes.find(x => normTxt(x.nombre) === normTxt(e.nombre));
+            if (!d) {
+                d = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: e.nombre, items: [], pagado: false };
+                listaMes.push(d);
+            }
+            const item = Object.assign({}, e.item);
+            if (d.items.some(i => i.id === item.id)) item.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            d.items.unshift(item);
+            guardarPapCuentas(lista.filter(x => x.id !== eid));
+
+            // 2) Ir a ese mes, desplegar el deudor y cerrar la papelera
+            if (e.mes !== claveMesActual) {
+                const [y, m] = e.mes.split('-').map(Number);
+                anioActual = y; mesActualIndex = m - 1; claveMesActual = e.mes;
+            }
+            cargarDatosMesActual();
+            guardarDatos();
+            window.deudoresAbiertos.clear();
+            const dNuevo = datosDeudores.find(x => normTxt(x.nombre) === normTxt(e.nombre));
+            if (dNuevo) window.deudoresAbiertos.add(dNuevo.id);
+            cerrarPapCuentas();
+            renderizar();
+
+            // 3) Resaltar la cuenta restaurada con un brillo que titila
+            const fila = document.querySelector(`[data-item-id="${item.id}"]`);
+            if (fila) {
+                fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                fila.classList.add('fila-restaurada');
+                setTimeout(() => fila.classList.remove('fila-restaurada'), 3200);
+            }
+            const [yy, mm] = e.mes.split('-');
+            mostrarToast(`Cuenta restaurada en ${MESES_NOMBRES[Number(mm) - 1]} ${yy}`, { deshacer: false });
+        };
+        window.borrarCuentaPapelera = function (eid) {
+            mostrarModalConfirmacion('Borrar para siempre', '¿Borrar esta cuenta de la papelera? No se puede recuperar.', 'fa-trash-can', () => {
+                guardarPapCuentas(leerPapCuentas().filter(x => x.id !== eid));
+                renderPapCuentas();
+            });
+        };
+    </script>
+
+    <script>
+        // Al deshacer una eliminación de cuenta, la cuenta vuelve al deudor y sale de la papelera
+        (function () {
+            const base = window.deshacerUltimo;
+            window.deshacerUltimo = function () {
+                if (pilaDeshacer.length) {
+                    const previo = JSON.parse(pilaDeshacer[pilaDeshacer.length - 1]);
+                    const reinstaladas = [];
+                    Object.keys(previo).forEach(k => {
+                        (previo[k] || []).forEach(dp => {
+                            const dAct = ((historialMeses[k] || []).find(x => x.id === dp.id)) || null;
+                            (dp.items || []).forEach(ip => {
+                                const existe = dAct && (dAct.items || []).some(i => i.id === ip.id);
+                                if (!existe) reinstaladas.push({ id: ip.id, nombre: dp.nombre });
+                            });
+                        });
+                    });
+                    if (reinstaladas.length) {
+                        const lista = leerPapCuentas().filter(e => !reinstaladas.some(r => r.id === e.item.id && normTxt(r.nombre) === normTxt(e.nombre)));
+                        guardarPapCuentas(lista);
+                    }
+                }
+                return base();
+            };
+        })();
     </script>
 </body>
 </html>
