@@ -251,6 +251,8 @@
         @keyframes brilloTitila { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
         .fila-restaurada { position: relative; isolation: isolate; }
         .fila-restaurada::before { content: ''; position: absolute; inset: -2px -10px; border-radius: 12px; background: rgba(45,212,191,.16); box-shadow: 0 0 18px 3px rgba(45,212,191,.55); z-index: -1; pointer-events: none; animation: brilloTitila .8s ease-in-out 4; }
+        .tarjeta-restaurada { position: relative; isolation: isolate; }
+        .tarjeta-restaurada::before { content: ''; position: absolute; inset: -3px; border-radius: 16px; background: rgba(45,212,191,.10); box-shadow: 0 0 14px 2px rgba(45,212,191,.5); z-index: -1; pointer-events: none; animation: brilloTitila .8s ease-in-out 4; }
     </style>
     <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
 </head>
@@ -362,6 +364,7 @@
                     <span class="text-xs text-slate-400 hidden sm:inline">Filtrar:</span>
                     <button id="btnDesplegarTodos" onclick="toggleDesplegarTodos()" title="Desplegar todos" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1.5 text-xs transition"><i class="fa-solid fa-angles-down text-xs"></i></button>
                     <button id="btnFiltroCuotas" onclick="abrirFiltroCuotas()" title="Filtrar por cuotas" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2 max-w-[160px] transition hover:border-indigo-500"><i class="fa-solid fa-filter text-[10px] text-indigo-400"></i><span id="txtFiltroCuotas" class="truncate">Todas las cuotas</span></button>
+                    <button id="btnVerTodo" onclick="limpiarTodosFiltros(); renderizar();" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition"><i class="fa-solid fa-rotate-left text-[10px]"></i> Ver todo</button>
                     <button id="btnFiltroDeudor" onclick="abrirListaDeudores()" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2 max-w-[180px] sm:max-w-[240px] transition hover:border-indigo-500"><span id="txtFiltroDeudor" class="truncate">Todos los deudores</span><i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i></button>
                     <select id="filtroDeudor" onchange="cambiarFiltroDeudor();" class="hidden">
                         <option value="todos">Todos los deudores</option>
@@ -458,7 +461,7 @@
                 </button>
                 <button onclick="accionMenu(() => exportarRespaldoJSON())" class="menu-tile">
                     <span class="menu-ico from-blue-500 to-cyan-600"><i class="fa-solid fa-download"></i></span>
-                    <span>Guardar</span>
+                    <span>Guardar JSON</span>
                 </button>
                 <button onclick="accionMenu(() => document.getElementById('inputImportarJSON').click())" class="menu-tile">
                     <span class="menu-ico from-slate-500 to-slate-700"><i class="fa-solid fa-upload"></i></span>
@@ -467,6 +470,10 @@
                 <button onclick="accionMenu(() => copiarGeneral())" class="menu-tile">
                     <span class="menu-ico from-teal-500 to-cyan-700"><i class="fa-regular fa-copy"></i></span>
                     <span>Copiar</span>
+                </button>
+                <button onclick="accionMenu(() => abrirComparar())" class="menu-tile">
+                    <span class="menu-ico from-violet-500 to-indigo-700"><i class="fa-solid fa-code-compare"></i></span>
+                    <span>Comparar</span>
                 </button>
                 <button onclick="accionMenu(() => confirmarVaciarMesActual())" class="menu-tile">
                     <span class="menu-ico from-red-500 to-rose-700"><i class="fa-solid fa-trash-can"></i></span>
@@ -1156,6 +1163,21 @@
                     deudor.items = deudor.items.filter(i => i.id !== itemId);
                     guardarDatos();
                     mostrarToast("Gasto eliminado.");
+                    if (deudor.items.length === 0) {
+                        setTimeout(() => mostrarModalConfirmacion(
+                            "Eliminar deudor",
+                            `${deudor.nombre} ya no tiene deudas. ¿También quieres eliminarlo?`,
+                            "fa-user-xmark",
+                            () => {
+                                const pap = leerPapelera();
+                                pap.unshift({ mes: claveMesActual, ts: Date.now(), deudor: JSON.parse(JSON.stringify(deudor)) });
+                                guardarPapeleraLista(pap);
+                                datosDeudores = datosDeudores.filter(x => x.id !== deudorId);
+                                guardarDatos();
+                                mostrarToast(`Deudor ${deudor.nombre} enviado a la papelera.`);
+                            }
+                        ), 350);
+                    }
                 }
             );
         }
@@ -3574,24 +3596,74 @@
             const m = document.getElementById('modalPapelera');
             m.classList.remove('hidden'); m.classList.add('flex');
         };
+        window.papExpandidos = window.papExpandidos || new Set();
+        window.togglePapDeudas = function (key) {
+            if (window.papExpandidos.has(key)) window.papExpandidos.delete(key);
+            else window.papExpandidos.add(key);
+            renderPapelera();
+        };
+        window.papTab = window.papTab || 'deudores';
+        window.cambiarPapTab = function (t) { window.papTab = t; renderPapelera(); };
+        function tabsPapelera() {
+            const nDeud = leerPapelera().length, nDeudas = leerPapCuentas().length;
+            const b = (k, txt) => `<button onclick="cambiarPapTab('${k}')" class="flex-1 py-2 rounded-lg text-xs font-semibold transition ${window.papTab === k ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${txt}</button>`;
+            return `<div class="flex gap-1 p-1 mb-3 rounded-xl bg-slate-900 border border-slate-700/60">${b('deudores', 'Deudores (' + nDeud + ')')}${b('deudas', 'Deudas eliminadas (' + nDeudas + ')')}</div>`;
+        }
+        function renderDeudasEliminadas() {
+            const body = document.getElementById('papeleraBody');
+            const lista = leerPapCuentas();
+            if (!lista.length) { body.innerHTML = tabsPapelera() + '<p class="text-slate-500 italic py-3">No hay deudas eliminadas.</p>'; return; }
+            body.innerHTML = tabsPapelera() + lista.map(e => {
+                const it = e.item;
+                const [y, m] = e.mes.split('-');
+                const cuota = it.cuotaTot ? `cuota ${Math.min(it.cuotaAct || 0, it.cuotaTot)}/${it.cuotaTot}` : 'pago único';
+                return `<div class="py-2.5 border-b border-slate-700/50 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="font-bold text-slate-200 truncate">${esc(e.nombre)} · ${esc(it.concepto)} ${e.finalizada ? '<span class="text-emerald-400 text-[10px] font-semibold">Finalizada</span>' : '<span class="text-rose-300 text-[10px] font-semibold">Eliminada</span>'}</p>
+                        <p class="text-[10px] text-slate-400 font-mono">${formatearMoneda(it.monto)} · ${cuota} · ${MESES_CORTOS[Number(m) - 1]} ${y}</p>
+                        <p class="text-[10px] text-slate-500">Eliminada el ${new Date(e.ts).toLocaleDateString('es-CL')}</p>
+                    </div>
+                    <div class="flex gap-1.5 shrink-0">
+                        <button onclick="restaurarCuentaPapelera('${e.id}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-medium">Restaurar</button>
+                        <button onclick="borrarCuentaPapelera('${e.id}')" class="px-2 py-1.5 rounded-lg border border-rose-500/40 text-rose-400 text-[11px]" title="Borrar para siempre"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
         function renderPapelera() {
+            if (window.papTab === 'deudas') { renderDeudasEliminadas(); return; }
             const lista = leerPapelera();
             const body = document.getElementById('papeleraBody');
             if (!lista.length) {
-                body.innerHTML = '<p class="text-slate-500 italic py-3">La papelera está vacía.</p>';
+                body.innerHTML = tabsPapelera() + '<p class="text-slate-500 italic py-3">La papelera está vacía.</p>';
                 return;
             }
-            body.innerHTML = lista.map((it, i) => {
+            body.innerHTML = tabsPapelera() + lista.map((it, i) => {
                 const [y, m] = it.mes.split('-');
                 const f = new Date(it.ts);
-                return `<div class="py-2.5 border-b border-slate-700/50 flex items-center justify-between gap-2">
-                    <div class="min-w-0">
-                        <p class="font-bold text-slate-200 truncate">${esc(it.deudor.nombre)}</p>
-                        <p class="text-[10px] text-slate-400">${MESES_CORTOS[Number(m) - 1]} ${y} · eliminado ${f.toLocaleDateString('es-CL')}</p>
-                    </div>
-                    <div class="flex gap-1.5 shrink-0">
-                        <button onclick="restaurarDeudorPapelera(${i})" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-medium">Restaurar</button>
-                        <button onclick="borrarDefinitivoPapelera(${i})" class="px-2 py-1.5 rounded-lg border border-rose-500/40 text-rose-400 text-[11px]" title="Borrar para siempre"><i class="fa-solid fa-trash"></i></button>
+                const key = String(it.ts) + '|' + it.deudor.nombre;
+                const items = it.deudor.items || [];
+                const abierto = window.papExpandidos.has(key);
+                const detalle = abierto ? `<div class="mt-2 mb-1 rounded-xl bg-slate-900/60 border border-slate-700/60 divide-y divide-slate-700/50">${
+                    items.length ? items.map(x => {
+                        const fin = !!(x.cuotaTot && (x.cuotaAct || 0) >= x.cuotaTot);
+                        const cuota = x.cuotaTot ? `cuota ${Math.min(x.cuotaAct || 0, x.cuotaTot)}/${x.cuotaTot}` : 'pago único';
+                        return `<div class="px-3 py-2 flex items-center justify-between gap-2">
+                            <div class="min-w-0"><p class="font-semibold text-slate-200 truncate">${esc(x.concepto)}</p>
+                            <p class="text-[10px] text-slate-400 font-mono">${formatearMoneda(x.monto)} · ${cuota}</p></div>
+                            <span class="text-[10px] font-semibold shrink-0 ${fin ? 'text-emerald-400' : 'text-slate-400'}">${fin ? 'Finalizada' : (x.pagado ? 'Pagada' : 'Pendiente')}</span></div>`;
+                    }).join('') : '<p class="px-3 py-2 text-slate-500 italic">Sin cuentas.</p>'
+                }</div>` : '';
+                return `<div class="py-2.5 border-b border-slate-700/50">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="font-bold text-slate-200 truncate">${esc(it.deudor.nombre)}</p>
+                            <p class="text-[10px] text-slate-400">${MESES_CORTOS[Number(m) - 1]} ${y} · eliminado ${f.toLocaleDateString('es-CL')} · ${items.length} cuenta${items.length === 1 ? '' : 's'}</p>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            <button onclick="restaurarDeudorPapelera(${i})" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-medium">Restaurar</button>
+                            <button onclick="borrarDefinitivoPapelera(${i})" class="px-2 py-1.5 rounded-lg border border-rose-500/40 text-rose-400 text-[11px]" title="Borrar para siempre"><i class="fa-solid fa-trash"></i></button>
+                        </div>
                     </div>
                 </div>`;
             }).join('') + `<button onclick="vaciarPapelera()" class="w-full mt-3 text-[11px] text-rose-400 py-2">Vaciar papelera</button>`;
@@ -3607,10 +3679,26 @@
             historialMeses[mes].push(d);
             lista.splice(i, 1);
             guardarPapeleraLista(lista);
+            // Ir al mes donde se restauró y desplegar al deudor
+            if (mes !== claveMesActual) {
+                const [y, m] = mes.split('-').map(Number);
+                anioActual = y; mesActualIndex = m - 1; claveMesActual = mes;
+            }
             cargarDatosMesActual();
             guardarDatos();
-            renderPapelera();
-            mostrarToast(`Deudor ${d.nombre} restaurado.`);
+            window.deudoresAbiertos.clear();
+            window.deudoresAbiertos.add(d.id);
+            cerrarPapelera();
+            renderizar();
+            // Resaltar al deudor restaurado
+            const tarjeta = document.querySelector(`[data-deudor-id="${d.id}"]`);
+            if (tarjeta) {
+                tarjeta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                tarjeta.classList.add('tarjeta-restaurada');
+                setTimeout(() => tarjeta.classList.remove('tarjeta-restaurada'), 3200);
+            }
+            const [yy, mm] = mes.split('-');
+            mostrarToast(`Deudor ${d.nombre} restaurado en ${MESES_NOMBRES[Number(mm) - 1]} ${yy}`, { deshacer: false });
         };
         window.borrarDefinitivoPapelera = function (i) {
             const lista = leerPapelera();
@@ -3731,6 +3819,8 @@
                 const b = document.getElementById('btnFiltroCuotas');
                 if (t) t.textContent = ETIQ_CUOTAS[window.filtroCuotasVal] || ETIQ_CUOTAS.todos;
                 if (b) b.classList.toggle('border-indigo-500', window.filtroCuotasVal !== 'todos');
+                const vt = document.getElementById('btnVerTodo');
+                if (vt) vt.classList.toggle('hidden', window.filtroCuotasVal === 'todos');
             };
         })();
     </script>
@@ -3854,6 +3944,7 @@
             const dNuevo = datosDeudores.find(x => normTxt(x.nombre) === normTxt(e.nombre));
             if (dNuevo) window.deudoresAbiertos.add(dNuevo.id);
             cerrarPapCuentas();
+            cerrarPapelera();
             renderizar();
 
             // 3) Resaltar la cuenta restaurada con un brillo que titila
@@ -3898,6 +3989,79 @@
                 }
                 return base();
             };
+        })();
+    </script>
+
+    <script>
+        // ===== Comparar los dos últimos meses =====
+        document.body.insertAdjacentHTML('beforeend',
+            shellModal('modalComparar', 'cerrarComparar', 'Comparar meses', '<div id="compBody" class="text-xs"></div>'));
+        window.cerrarComparar = function () {
+            const m = document.getElementById('modalComparar');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        };
+        window.abrirComparar = function () {
+            const body = document.getElementById('compBody');
+            const claves = Object.keys(historialMeses).filter(k => Array.isArray(historialMeses[k]) && historialMeses[k].length > 0).sort();
+            const etiq = k => { const [y, mm] = k.split('-'); return `${MESES_CORTOS[Number(mm) - 1]} ${y}`; };
+            const nk = t => normTxt(t).trim();
+            if (claves.length < 2) {
+                body.innerHTML = '<p class="text-slate-500 italic py-3">Necesitas al menos dos meses con datos para comparar.</p>';
+            } else {
+                const kPrev = claves[claves.length - 2], kCur = claves[claves.length - 1];
+                const prev = historialMeses[kPrev], cur = historialMeses[kCur];
+                const pm = new Map(prev.map(d => [nk(d.nombre), d]));
+                const cm = new Map(cur.map(d => [nk(d.nombre), d]));
+                const difs = [];
+                pm.forEach((dp, n) => { if (!cm.has(n)) difs.push(`<b>${esc(dp.nombre)}</b> estaba en ${etiq(kPrev)} y no está en ${etiq(kCur)}`); });
+                cm.forEach((dc, n) => { if (!pm.has(n)) difs.push(`<b>${esc(dc.nombre)}</b> es nuevo en ${etiq(kCur)}`); });
+                pm.forEach((dp, n) => {
+                    const dc = cm.get(n);
+                    if (!dc) return;
+                    const cP = dp.items || [], cC = dc.items || [];
+                    cP.forEach(ip => {
+                        const ic = cC.find(x => nk(x.concepto) === nk(ip.concepto));
+                        const terminada = !!(ip.cuotaTot && (ip.cuotaAct || 0) >= ip.cuotaTot);
+                        if (!ic) { if (!terminada) difs.push(`<b>${esc(dp.nombre)}</b>: «${esc(ip.concepto)}» no está en ${etiq(kCur)}`); return; }
+                        if (ic.monto !== ip.monto) difs.push(`<b>${esc(dp.nombre)}</b>: «${esc(ip.concepto)}» cambió de monto (${formatearMoneda(ip.monto)} → ${formatearMoneda(ic.monto)})`);
+                        if (ip.cuotaTot && !terminada) {
+                            const antes = ip.cuotaAct || 0, ahora = ic.cuotaAct || 0;
+                            if (ahora !== antes + 1 && ahora !== antes) difs.push(`<b>${esc(dp.nombre)}</b>: «${esc(ip.concepto)}» cuota de ${antes} a ${ahora} (se esperaba ${antes + 1})`);
+                            if (ahora === antes) difs.push(`<b>${esc(dp.nombre)}</b>: «${esc(ip.concepto)}» la cuota no avanzó (sigue en ${antes})`);
+                        }
+                    });
+                    cC.forEach(ic => { if (!cP.some(x => nk(x.concepto) === nk(ic.concepto))) difs.push(`<b>${esc(dc.nombre)}</b>: «${esc(ic.concepto)}» es nueva en ${etiq(kCur)}`); });
+                });
+                const total = lista => lista.reduce((a, d) => a + subtotalDe(d), 0);
+                body.innerHTML = `
+                    <p class="text-slate-400 mb-2">${etiq(kPrev)} → ${etiq(kCur)}</p>
+                    <div class="grid grid-cols-2 gap-2 mb-3 text-center">
+                        <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">${etiq(kPrev)}</div><div class="font-mono font-bold text-slate-200">${formatearMoneda(total(prev))}</div><div class="text-[10px] text-slate-500">${prev.length} deudores</div></div>
+                        <div class="bg-slate-900 rounded-lg p-2"><div class="text-[10px] text-slate-400">${etiq(kCur)}</div><div class="font-mono font-bold text-slate-200">${formatearMoneda(total(cur))}</div><div class="text-[10px] text-slate-500">${cur.length} deudores</div></div>
+                    </div>
+                    ${difs.length
+                        ? `<p class="text-xs font-semibold text-amber-300 mb-1.5">${difs.length} diferencia${difs.length === 1 ? '' : 's'} para revisar</p>
+                           <div class="divide-y divide-slate-700/50">${difs.map(t => `<p class="py-2 text-slate-300">${t}</p>`).join('')}</div>`
+                        : `<div class="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-3 text-center"><i class="fa-solid fa-circle-check text-emerald-400"></i><p class="text-emerald-300 font-semibold mt-1">Todo se creó correctamente</p><p class="text-[11px] text-slate-400">Los deudores y sus cuentas coinciden entre los dos meses.</p></div>`}`;
+            }
+            const m = document.getElementById('modalComparar');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+    </script>
+
+    <script>
+        // Eliminar deudor o deuda sin ventana de confirmación (se puede deshacer y está la papelera)
+        (function () {
+            const sinConfirmar = fn => function (...args) {
+                const original = mostrarModalConfirmacion;
+                mostrarModalConfirmacion = function (titulo, mensaje, icono, cb) {
+                    if (typeof cb === 'function') cb();
+                };
+                try { return fn.apply(this, args); }
+                finally { mostrarModalConfirmacion = original; }
+            };
+            window.eliminarItem = sinConfirmar(window.eliminarItem);
+            window.eliminarDeudor = sinConfirmar(window.eliminarDeudor);
         })();
     </script>
 </body>
