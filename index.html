@@ -333,8 +333,8 @@
                     <i class="fa-solid fa-trash-can"></i> Eliminar Mes
                 </button>
 
-                <button onclick="exportarRespaldoJSON()" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Guardar respaldo en archivo JSON">
-                    <i class="fa-solid fa-download"></i> Guardar JSON
+                <button onclick="exportarRespaldoJSON()" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Guardar una copia de todos los datos en el teléfono">
+                    <i class="fa-solid fa-download"></i> Guardar copia
                 </button>
 
                 <button onclick="document.getElementById('inputImportarJSON').click()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg font-medium text-xs transition shadow flex items-center justify-center gap-1.5" title="Cargar un archivo JSON de respaldo">
@@ -360,6 +360,10 @@
 
 
     <main class="max-w-6xl mx-auto px-4 mt-4 sm:mt-6">
+        <div id="avisoRespaldo" class="hidden flex items-center justify-between gap-3 mb-3 bg-amber-950/30 border border-amber-500/40 rounded-xl px-3 py-2 text-[11px] text-amber-300" role="status">
+            <span id="avisoRespaldoTexto"></span>
+            <button onclick="exportarRespaldoJSON()" class="shrink-0 font-semibold underline">Guardar copia</button>
+        </div>
 
         <div id="vistaDeudores" class="space-y-5">
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50">
@@ -471,7 +475,7 @@
                 </button>
                 <button onclick="accionMenu(() => exportarRespaldoJSON())" class="menu-tile">
                     <span class="menu-ico from-blue-500 to-cyan-600"><i class="fa-solid fa-download"></i></span>
-                    <span>Guardar JSON</span>
+                    <span>Guardar copia</span>
                 </button>
                 <button onclick="accionMenu(() => document.getElementById('inputImportarJSON').click())" class="menu-tile">
                     <span class="menu-ico from-slate-500 to-slate-700"><i class="fa-solid fa-upload"></i></span>
@@ -1545,13 +1549,12 @@
         // Reglas:
         //  1) No se sube nada hasta haber leído la nube con éxito.
         //  2) Solo se suben los meses que ESTE dispositivo cambió, mezclados con lo que hay hoy en la nube.
-        //  3) Antes de reemplazar, se guarda una copia de la nube (tabla opcional app_data_respaldos)
-        //     y una copia local de seguridad cuando la nube reemplaza datos distintos de este dispositivo.
+        //  3) El respaldo en la nube lo hace un trigger de Supabase (tabla app_data_respaldos).
+        //     Aquí solo se guarda una copia local cuando la nube reemplaza datos distintos de este dispositivo.
         const LS_HIST = 'deudores_v8_historial';
         const LS_CLAVE = 'deudores_v8_clave_actual';
         const LS_SUCIOS = 'deudores_v9_sucios';
         const LS_RESP = 'deudores_v9_respaldos_locales';
-        const LS_ULT_RESP_NUBE = 'deudores_v9_ultimo_respaldo_nube';
 
         let nubeLista = false;          // true solo cuando ya se leyó la nube con éxito
         let estadoInicial = false;      // true cuando ya se cargó algo en pantalla
@@ -1561,7 +1564,6 @@
         let timerNube = null;
         let timerReintentoLectura = null;
         let canalRealtime = null;
-        let respaldoNubeDisponible = true;
         let ultimoRefresco = 0;
         let snapMeses = {};             // mes -> JSON de la última versión conocida de la nube
         let mesesSucios = new Set();    // meses con cambios hechos aquí que aún no se suben
@@ -1807,22 +1809,6 @@
             timerNube = setTimeout(() => { timerNube = null; subirNube(); }, 400);
         }
 
-        // Copia de lo que hay en la nube justo antes de reemplazarlo (máx. 1 por hora y dispositivo)
-        async function respaldarNube(payloadPrevio) {
-            if (!respaldoNubeDisponible || !payloadPrevio || !payloadPrevio.historialMeses) return;
-            try {
-                const ultimo = parseInt(localStorage.getItem(LS_ULT_RESP_NUBE) || '0', 10);
-                if (Date.now() - ultimo < 3600 * 1000) return;
-                const { error } = await supabaseClient.from('app_data_respaldos').insert({ payload: payloadPrevio });
-                if (error) {
-                    respaldoNubeDisponible = false;
-                    console.warn("Respaldo en la nube no disponible (¿falta crear la tabla app_data_respaldos?):", error.message);
-                    return;
-                }
-                localStorage.setItem(LS_ULT_RESP_NUBE, String(Date.now()));
-            } catch (e) { respaldoNubeDisponible = false; }
-        }
-
         async function subirNube() {
             if (!supabaseClient || !nubeLista) return;
             if (subiendo) { reintentarSubida = true; return; }
@@ -1837,10 +1823,7 @@
                 const previo = data && data.payload ? data.payload : null;
                 const nubeHist = (previo && previo.historialMeses) || {};
 
-                // 2) Guardar copia de lo que se va a reemplazar
-                await respaldarNube(previo);
-
-                // 3) Mezclar: la nube manda, salvo los meses cambiados aquí
+                // 2) Mezclar: la nube manda, salvo los meses cambiados aquí
                 const mezcla = Object.assign({}, nubeHist);
                 const jsSubido = {};
                 subidos.forEach(m => {
@@ -1858,7 +1841,7 @@
                     });
                 if (errorGuardar) throw errorGuardar;
 
-                // 4) Lo subido deja de estar pendiente (salvo lo que se editó mientras se subía)
+                // 3) Lo subido deja de estar pendiente (salvo lo que se editó mientras se subía)
                 subidos.forEach(m => {
                     if (jsSubido[m] !== undefined && JSON.stringify(historialMeses[m]) === jsSubido[m]) mesesSucios.delete(m);
                 });
@@ -1996,7 +1979,7 @@
             }
         }
 
-        window.exportarRespaldoJSON = function() {
+        window.exportarRespaldoJSON = async function() {
             const mesNombre = MESES_NOMBRES[mesActualIndex];
             const dataToExport = {
                 mesIndex: mesActualIndex,
@@ -2007,14 +1990,39 @@
                 historialCompleto: historialMeses,
                 deudoresMesActual: datosDeudores
             };
+            const texto = JSON.stringify(dataToExport, null, 2);
+            const hoy = new Date();
+            const fecha = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+            const nombreArchivo = 'Respaldo_Deudores_' + fecha + '.json';
 
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `Respaldo_Deudores_${mesNombre}_${anioActual}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            const registrarCopia = (mensaje) => {
+                try { localStorage.setItem('deudores_ultimo_respaldo', String(Date.now())); } catch (e) {}
+                if (window.actualizarAvisoRespaldo) window.actualizarAvisoRespaldo();
+                mostrarToast(mensaje, { deshacer: false });
+            };
+
+            // 1) En el teléfono: menú de compartir (Archivos, Drive, WhatsApp...)
+            try {
+                const archivo = new File([texto], nombreArchivo, { type: 'application/json' });
+                if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+                    await navigator.share({ files: [archivo], title: 'Respaldo de deudores' });
+                    registrarCopia('Copia guardada');
+                    return;
+                }
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;   // la persona canceló el menú
+            }
+
+            // 2) Alternativa: descarga normal del archivo
+            const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            registrarCopia('Copia descargada');
         }
 
         window.importarRespaldoJSON = function(event) {
@@ -2976,6 +2984,7 @@
         renderizar = function () {
             _renderBase3();
             actualizarResumenBusqueda();
+            if (window.actualizarAvisoRespaldo) window.actualizarAvisoRespaldo();
         };
 
         const DIA = 864e5;
@@ -2992,10 +3001,18 @@
                 localStorage.setItem('deudores_snap_ts', String(Date.now()));
             } catch (e) { console.warn('No se pudo guardar el respaldo automático', e); }
         }
-        const _exportBase2 = window.exportarRespaldoJSON;
-        window.exportarRespaldoJSON = function () {
-            _exportBase2();
-            localStorage.setItem('deudores_ultimo_respaldo', String(Date.now()));
+        // Aviso: hace 7 días o más que no se guarda una copia en el teléfono
+        window.actualizarAvisoRespaldo = function () {
+            const el = document.getElementById('avisoRespaldo');
+            if (!el) return;
+            const hayDatos = Object.values(historialMeses || {}).some(l => Array.isArray(l) && l.length > 0);
+            const ult = Number(localStorage.getItem('deudores_ultimo_respaldo') || 0);
+            const dias = ult ? Math.floor((Date.now() - ult) / DIA) : null;
+            if (!hayDatos || (ult && dias < 7)) { el.classList.add('hidden'); return; }
+            document.getElementById('avisoRespaldoTexto').textContent = ult
+                ? 'Hace ' + dias + ' días que no guardas una copia en el teléfono.'
+                : 'Aún no has guardado una copia en el teléfono.';
+            el.classList.remove('hidden');
         };
         window.addEventListener('load', () => setTimeout(() => { snapshotSemanal(); }, 4000));
     </script>
