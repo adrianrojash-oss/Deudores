@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor Inteligente de Deudores y Cuotas</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Deudores">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -1568,6 +1576,84 @@
         let snapMeses = {};             // mes -> JSON de la última versión conocida de la nube
         let mesesSucios = new Set();    // meses con cambios hechos aquí que aún no se suben
 
+        // ===== Papelera sincronizada entre dispositivos =====
+        // Se guarda en la nube dentro del mismo registro (payload.papelera) y se mezcla por entrada:
+        // lo que agregaste o quitaste aquí se aplica sobre lo que haya en la nube, sin pisar lo de otros dispositivos.
+        const LS_PAP_SNAP = 'deudores_v9_pap_snap';
+        const kPapDeudor = e => (e && e.deudor ? String(e.mes) + '|' + e.deudor.id + '|' + e.ts : null);
+        const kPapCuenta = e => (e && e.id ? String(e.id) : null);
+
+        function leerPapLocal() {
+            let d = [], c = [];
+            try { d = JSON.parse(localStorage.getItem('deudores_papelera') || '[]'); } catch (e) {}
+            try { c = JSON.parse(localStorage.getItem('deudores_papelera_cuentas') || '[]'); } catch (e) {}
+            return { deudores: Array.isArray(d) ? d : [], cuentas: Array.isArray(c) ? c : [] };
+        }
+        function escribirPapLocal(pp) {
+            try {
+                localStorage.setItem('deudores_papelera', JSON.stringify(pp.deudores.slice(0, 100)));
+                localStorage.setItem('deudores_papelera_cuentas', JSON.stringify(pp.cuentas.slice(0, 300)));
+            } catch (e) {}
+        }
+        function normalizarPap(pp) {
+            return { deudores: (pp && Array.isArray(pp.deudores)) ? pp.deudores : [], cuentas: (pp && Array.isArray(pp.cuentas)) ? pp.cuentas : [] };
+        }
+        function clavesPap(pp) {
+            return { d: pp.deudores.map(kPapDeudor).filter(Boolean), c: pp.cuentas.map(kPapCuenta).filter(Boolean) };
+        }
+        function leerSnapPap() {
+            try {
+                const sn = JSON.parse(localStorage.getItem(LS_PAP_SNAP) || 'null');
+                if (sn && Array.isArray(sn.d) && Array.isArray(sn.c)) return sn;
+            } catch (e) {}
+            return { d: [], c: [] };
+        }
+        function guardarSnapPap(k) { try { localStorage.setItem(LS_PAP_SNAP, JSON.stringify(k)); } catch (e) {} }
+
+        // Mezcla de 3 vías: nube, copia local y lo que se conocía de la nube la última vez
+        function mezclar3(nube, local, snapKeys, kf) {
+            const clavesLocal = new Set(local.map(kf));
+            const snap = new Set(snapKeys);
+            const quitadas = new Set(Array.from(snap).filter(k => !clavesLocal.has(k)));
+            const res = nube.filter(e => { const k = kf(e); return k && !quitadas.has(k); });
+            const presentes = new Set(res.map(kf));
+            local.forEach(e => {
+                const k = kf(e);
+                if (k && !snap.has(k) && !presentes.has(k)) { res.push(e); presentes.add(k); }
+            });
+            res.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            return res;
+        }
+        function mezclarPapelera(papNube) {
+            const nube = normalizarPap(papNube), local = leerPapLocal(), snap = leerSnapPap();
+            return { deudores: mezclar3(nube.deudores, local.deudores, snap.d, kPapDeudor), cuentas: mezclar3(nube.cuentas, local.cuentas, snap.c, kPapCuenta) };
+        }
+        function hayPapeleraPendiente() {
+            const k = clavesPap(leerPapLocal()), sn = leerSnapPap();
+            const dif = (a, b) => { const sb = new Set(b), sa = new Set(a); return a.some(x => !sb.has(x)) || b.some(x => !sa.has(x)); };
+            return dif(k.d, sn.d) || dif(k.c, sn.c);
+        }
+        function refrescarVistaPapelera() {
+            try {
+                const m = document.getElementById('modalPapelera');
+                if (m && !m.classList.contains('hidden') && typeof renderPapelera === 'function') renderPapelera();
+            } catch (e) {}
+        }
+        function aplicarPapeleraNube(papNube) {
+            const antes = JSON.stringify(leerPapLocal());
+            const resultado = mezclarPapelera(papNube);
+            escribirPapLocal(resultado);
+            guardarSnapPap(clavesPap(normalizarPap(papNube)));
+            if (JSON.stringify(leerPapLocal()) !== antes) refrescarVistaPapelera();
+        }
+        // Lo llaman las funciones que guardan la papelera, para subir el cambio a la nube
+        window.programarSubidaPapelera = function () {
+            if (!supabaseClient || !nubeLista || !hayPapeleraPendiente()) return;
+            actualizarBadgeNube("sincronizando", "Guardando...");
+            clearTimeout(timerNube);
+            timerNube = setTimeout(() => { timerNube = null; subirNube(); }, 400);
+        };
+
         function mesVacio(v) { return !v || (Array.isArray(v) && v.length === 0); }
         function snapshotDe(h) { const s = {}; Object.keys(h || {}).forEach(k => { s[k] = JSON.stringify(h[k]); }); return s; }
         function leerSucios() { try { return new Set(JSON.parse(localStorage.getItem(LS_SUCIOS) || '[]')); } catch (e) { return new Set(); } }
@@ -1717,6 +1803,9 @@
                 }
 
                 snapMeses = snapshotDe(nubeHist);
+                const papNubeInicial = data && data.payload ? data.payload.papelera : null;
+                escribirPapLocal(mezclarPapelera(papNubeInicial));
+                guardarSnapPap(clavesPap(normalizarPap(papNubeInicial)));
                 estadoBase = JSON.stringify(historialMeses);
                 persistirLocal();
                 guardarSucios();
@@ -1725,7 +1814,7 @@
                 cargarDatosMesActual();
                 suscribirRealtime();
 
-                if (mesesSucios.size > 0) {
+                if (mesesSucios.size > 0 || hayPapeleraPendiente()) {
                     actualizarBadgeNube("sincronizando", "Guardando...");
                     await subirNube();
                 } else {
@@ -1744,6 +1833,7 @@
 
         // Trae de la nube los meses que cambiaron en otro dispositivo (sin tocar los que se editan aquí)
         function aplicarNube(p) {
+            if (p && p.papelera) aplicarPapeleraNube(p.papelera);
             const nubeHist = (p && p.historialMeses) || {};
             let cambio = false, cambioActual = false;
             Object.keys(nubeHist).forEach(k => {
@@ -1784,7 +1874,7 @@
                 const { data, error } = await supabaseClient.from('app_data').select('payload').eq('id', 'historial_principal').maybeSingle();
                 if (!error && data && data.payload) aplicarNube(data.payload);
             } catch (e) { /* sin conexión: se intentará más tarde */ }
-            if (mesesSucios.size > 0) subirNube();
+            if (mesesSucios.size > 0 || hayPapeleraPendiente()) subirNube();
         }
         // Al volver a la pestaña o recuperar internet: releer la nube para no trabajar con datos viejos
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refrescarNube(); });
@@ -1803,7 +1893,7 @@
                 actualizarBadgeNube("offline", "Sin conexión: solo local");
                 return;
             }
-            if (mesesSucios.size === 0) return;
+            if (mesesSucios.size === 0 && !hayPapeleraPendiente()) return;
             actualizarBadgeNube("sincronizando", "Guardando...");
             clearTimeout(timerNube);
             timerNube = setTimeout(() => { timerNube = null; subirNube(); }, 400);
@@ -1812,7 +1902,7 @@
         async function subirNube() {
             if (!supabaseClient || !nubeLista) return;
             if (subiendo) { reintentarSubida = true; return; }
-            if (mesesSucios.size === 0) { actualizarBadgeNube("sincronizado", "Sincronizado"); return; }
+            if (mesesSucios.size === 0 && !hayPapeleraPendiente()) { actualizarBadgeNube("sincronizado", "Sincronizado"); return; }
             subiendo = true;
             try {
                 const subidos = Array.from(mesesSucios);
@@ -1822,6 +1912,7 @@
                 if (error) throw error;
                 const previo = data && data.payload ? data.payload : null;
                 const nubeHist = (previo && previo.historialMeses) || {};
+                const papMezcla = mezclarPapelera(previo ? previo.papelera : null);
 
                 // 2) Mezclar: la nube manda, salvo los meses cambiados aquí
                 const mezcla = Object.assign({}, nubeHist);
@@ -1837,7 +1928,7 @@
                     .from('app_data')
                     .upsert({
                         id: 'historial_principal',
-                        payload: { historialMeses: mezcla, claveMesActual: claveMesActual, actualizadoEn: new Date().toISOString() }
+                        payload: { historialMeses: mezcla, papelera: papMezcla, claveMesActual: claveMesActual, actualizadoEn: new Date().toISOString() }
                     });
                 if (errorGuardar) throw errorGuardar;
 
@@ -1846,7 +1937,7 @@
                     if (jsSubido[m] !== undefined && JSON.stringify(historialMeses[m]) === jsSubido[m]) mesesSucios.delete(m);
                 });
                 guardarSucios();
-                aplicarNube({ historialMeses: mezcla });
+                aplicarNube({ historialMeses: mezcla, papelera: papMezcla });
                 actualizarBadgeNube("sincronizado", "Sincronizado");
             } catch (err) {
                 console.error("Error guardando en Supabase:", err);
@@ -1988,7 +2079,8 @@
                 mesNombre: mesNombre,
                 fechaExportacion: new Date().toISOString(),
                 historialCompleto: historialMeses,
-                deudoresMesActual: datosDeudores
+                deudoresMesActual: datosDeudores,
+                papelera: leerPapLocal()
             };
             const texto = JSON.stringify(dataToExport, null, 2);
             const hoy = new Date();
@@ -2040,6 +2132,17 @@
                             const partes = claveMesActual.split('-');
                             anioActual = parseInt(partes[0]);
                             mesActualIndex = parseInt(partes[1]) - 1;
+                        }
+                        if (parsed.papelera) {
+                            // Une la papelera del archivo con la de este dispositivo (sin duplicar)
+                            const unir = (a, b, kf) => {
+                                const m = new Map();
+                                a.concat(b).forEach(e => { const k = kf(e); if (k && !m.has(k)) m.set(k, e); });
+                                return Array.from(m.values()).sort((x, y) => (y.ts || 0) - (x.ts || 0));
+                            };
+                            const loc = leerPapLocal(), imp = normalizarPap(parsed.papelera);
+                            escribirPapLocal({ deudores: unir(loc.deudores, imp.deudores, kPapDeudor), cuentas: unir(loc.cuentas, imp.cuentas, kPapCuenta) });
+                            if (window.programarSubidaPapelera) window.programarSubidaPapelera();
                         }
                         cargarDatosMesActual();
                         guardarDatos();
@@ -3048,6 +3151,34 @@
             _badgeBase2(estado, texto);
             sincronizarEstadoSheet();
         };
+        // Muestra hace cuánto se sincronizó por última vez
+        let _ultimaSync = 0, _estadoNube = '';
+        function _textoSync(ms) {
+            const min = Math.floor(ms / 60000);
+            if (min < 1) return 'Sincronizado';
+            if (min < 60) return 'Sincr. hace ' + min + ' min';
+            const h = Math.floor(min / 60);
+            return h < 24 ? 'Sincr. hace ' + h + ' h' : 'Sincr. hace ' + Math.floor(h / 24) + ' d';
+        }
+        function _pintarSync() {
+            if (_estadoNube !== 'sincronizado' || !_ultimaSync) return;
+            const t = document.getElementById('cloudText');
+            if (t) t.innerText = _textoSync(Date.now() - _ultimaSync);
+            sincronizarEstadoSheet();
+        }
+        const _badgeBase3 = actualizarBadgeNube;
+        actualizarBadgeNube = function (estado, texto) {
+            _estadoNube = estado;
+            if (estado === 'sincronizado') _ultimaSync = Date.now();
+            _badgeBase3(estado, texto);
+            if (estado === 'sincronizado') _pintarSync();
+        };
+        setInterval(_pintarSync, 20000);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _pintarSync(); });
+        // ===== App instalable: service worker (necesita sw.js junto al index.html) =====
+        if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+        }
         window.addEventListener('load', () => setTimeout(sincronizarEstadoSheet, 300));
     </script>
 
@@ -3840,6 +3971,7 @@
         }
         function guardarPapeleraLista(lista) {
             try { localStorage.setItem('deudores_papelera', JSON.stringify(lista.slice(0, 100))); } catch (e) {}
+            if (window.programarSubidaPapelera) window.programarSubidaPapelera();
         }
         window.cerrarPapelera = function () {
             const m = document.getElementById('modalPapelera');
@@ -4122,6 +4254,7 @@
         }
         function guardarPapCuentas(lista) {
             try { localStorage.setItem('deudores_papelera_cuentas', JSON.stringify(lista.slice(0, 300))); } catch (e) {}
+            if (window.programarSubidaPapelera) window.programarSubidaPapelera();
         }
         window.guardarCuentasEliminadas = function (entradas) {
             if (!entradas || !entradas.length) return;
