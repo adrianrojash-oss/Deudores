@@ -256,6 +256,7 @@
     </style>
     <script>if(localStorage.getItem("deudores_tema")==="claro")document.documentElement.classList.add("modo-claro");</script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Crect x='12' y='20' width='40' height='26' rx='6' fill='%23e0e7ff'/%3E%3Crect x='12' y='16' width='30' height='8' rx='4' fill='%23c7d2fe'/%3E%3Ccircle cx='44' cy='33' r='3.5' fill='%234f46e5'/%3E%3C/svg%3E">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased pb-36 sm:pb-32 selection:bg-indigo-500 selection:text-white relative">
 
@@ -479,6 +480,18 @@
                 <button onclick="accionMenu(() => cicloModoFecha())" class="menu-tile">
                     <span class="menu-ico from-amber-500 to-yellow-700"><i class="fa-regular fa-calendar"></i></span>
                     <span>Fecha</span>
+                </button>
+                <button onclick="accionMenu(() => guardarRespaldoNube(true))" class="menu-tile">
+                    <span class="menu-ico from-sky-500 to-blue-700"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                    <span>Respaldo nube</span>
+                </button>
+                <button onclick="accionMenu(() => respaldoDrive())" class="menu-tile">
+                    <span class="menu-ico from-green-500 to-emerald-700"><i class="fa-brands fa-google-drive"></i></span>
+                    <span>Respaldo Drive</span>
+                </button>
+                <button onclick="accionMenu(() => restaurarDrive())" class="menu-tile">
+                    <span class="menu-ico from-green-600 to-teal-800"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+                    <span>Restaurar Drive</span>
                 </button>
                 <button onclick="accionMenu(() => confirmarVaciarMesActual())" class="menu-tile">
                     <span class="menu-ico from-red-500 to-rose-700"><i class="fa-solid fa-trash-can"></i></span>
@@ -928,8 +941,8 @@
                             <div data-item-id="${item.id}" data-item-deudor="${d.id}" class="flex items-center justify-between py-2 border-b border-slate-700/40 text-sm">
                                 <div class="flex items-center gap-1.5 min-w-0 pr-2">
                                     ${d.modoCuentas ? `<button onclick="togglePagadoItem('${d.id}', '${item.id}')" class="p-0.5 transition ${item.pagado ? 'text-emerald-400' : 'text-slate-500 hover:text-emerald-400'}" title="${item.pagado ? 'Desmarcar pagada' : 'Marcar pagada'}"><i class="${item.pagado ? 'fa-solid' : 'fa-regular'} fa-circle-check text-[12px]"></i></button>` : ''}
-                                    <span class="min-w-0"><span class="font-bold truncate block ${d.modoCuentas && item.pagado ? 'text-emerald-400 line-through' : 'text-slate-200'}">${conceptoResaltado}</span>${fechaDebajo}</span>
-                                    ${fechaTocar}
+                                    <span class="font-bold truncate ${d.modoCuentas && item.pagado ? 'text-emerald-400 line-through' : 'text-slate-200'}">${conceptoResaltado}</span>
+                                    ${fechaDebajo}${fechaTocar}
                                     ${prestadoTexto}
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
@@ -4086,12 +4099,12 @@
     </script>
 
     <script>
-        // ===== Fecha de cada deuda: modo de visualización (se prueba desde el menú +) =====
+        // ===== Fecha de cada deuda: modo de visualización (por defecto: al tocar la deuda) =====
         const MODOS_FECHA = ['debajo', 'cuota', 'tocar'];
         const ETIQ_MODO_FECHA = { debajo: 'Debajo del concepto', cuota: 'Junto a la cuota', tocar: 'Al tocar la deuda' };
         window.leerModoFecha = function () {
             const v = localStorage.getItem('deudores_modo_fecha');
-            return MODOS_FECHA.includes(v) ? v : 'cuota';
+            return MODOS_FECHA.includes(v) ? v : 'tocar';
         };
         window.fmtFechaCorta = function (f) {
             const [y, m, d] = String(f).split('-');
@@ -4105,16 +4118,137 @@
             renderizar();
             mostrarToast('Fecha: ' + ETIQ_MODO_FECHA[nuevo], { deshacer: false });
         };
-        // Al tocar una deuda (modo "al tocar"), mostrar u ocultar su fecha
         document.addEventListener('click', e => {
             if (leerModoFecha() !== 'tocar') return;
             if (e.target.closest('button, input, select, textarea, a')) return;
             const fila = e.target.closest('[data-item-id]');
             if (!fila) return;
             const f = fila.querySelector('.fecha-tap');
-            if (!f) return;
-            f.classList.toggle('hidden');
+            if (f) f.classList.toggle('hidden');
         });
+    </script>
+
+    <script>
+        // ===== Respaldo automático en la nube (tabla app_data, una copia por semana, se conservan 8) =====
+        window.guardarRespaldoNube = async function (manual) {
+            if (!supabaseClient) { if (manual) mostrarToast('La nube no está configurada', { deshacer: false }); return; }
+            try {
+                const id = 'respaldo_' + new Date().toISOString().slice(0, 10);
+                const payload = { historialMeses: historialMeses, claveMesActual: claveMesActual, creadoEn: new Date().toISOString() };
+                const { error } = await supabaseClient.from('app_data').upsert({ id: id, payload: payload });
+                if (error) throw error;
+                localStorage.setItem('deudores_ultimo_respaldo_nube', String(Date.now()));
+                const { data } = await supabaseClient.from('app_data').select('id').like('id', 'respaldo_%').order('id', { ascending: false });
+                if (data && data.length > 8) {
+                    await supabaseClient.from('app_data').delete().in('id', data.slice(8).map(r => r.id));
+                }
+                if (manual) mostrarToast('Respaldo en la nube guardado', { deshacer: false });
+            } catch (e) {
+                console.error('Error en respaldo de nube:', e);
+                if (manual) mostrarToast('No se pudo guardar el respaldo en la nube', { deshacer: false });
+            }
+        };
+        window.addEventListener('load', () => setTimeout(() => {
+            const ult = Number(localStorage.getItem('deudores_ultimo_respaldo_nube') || 0);
+            if (Date.now() - ult > 7 * 864e5) guardarRespaldoNube(false);
+        }, 8000));
+    </script>
+
+    <script>
+        // ===== Respaldo en Google Drive (carpeta oculta de la app: drive.appdata) =====
+        const GDRIVE_CLIENT_ID = '507451492940-8fq9vbm8pd3bcfb5471lj80s5o45qnqk.apps.googleusercontent.com';
+        const GDRIVE_NOMBRE = 'deudores_respaldo.json';
+        let gToken = null, gPendiente = null;
+        function gCliente() {
+            if (!(window.google && google.accounts && google.accounts.oauth2)) return null;
+            if (!window._gCliente) {
+                window._gCliente = google.accounts.oauth2.initTokenClient({
+                    client_id: GDRIVE_CLIENT_ID,
+                    scope: 'https://www.googleapis.com/auth/drive.appdata',
+                    callback: r => {
+                        if (r.error) { gPendiente = null; mostrarToast('No se autorizó Google Drive', { deshacer: false }); return; }
+                        gToken = r.access_token;
+                        const cb = gPendiente; gPendiente = null;
+                        if (cb) cb();
+                    }
+                });
+            }
+            return window._gCliente;
+        }
+        window.respaldoDrive = function () {
+            const c = gCliente();
+            if (!c) { mostrarToast('Google todavía no carga. Revisa la conexión.', { deshacer: false }); return; }
+            if (gToken) subirRespaldoDrive();
+            else { gPendiente = subirRespaldoDrive; c.requestAccessToken({ prompt: 'consent' }); }
+        };
+        async function subirRespaldoDrive() {
+            try {
+                const cabe = { Authorization: 'Bearer ' + gToken };
+                const q = encodeURIComponent(`name='${GDRIVE_NOMBRE}' and trashed=false`);
+                const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: cabe });
+                if (r.status === 401) { gToken = null; throw new Error('sesión vencida'); }
+                const archivos = (await r.json()).files || [];
+                const contenido = JSON.stringify({ historialMeses: historialMeses, claveMesActual: claveMesActual, creadoEn: new Date().toISOString() });
+                const limite = 'dbnd' + Date.now();
+                const meta = archivos.length ? { name: GDRIVE_NOMBRE } : { name: GDRIVE_NOMBRE, parents: ['appDataFolder'] };
+                const cuerpo = `--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${limite}\r\nContent-Type: application/json\r\n\r\n${contenido}\r\n--${limite}--`;
+                const url = archivos.length
+                    ? `https://www.googleapis.com/upload/drive/v3/files/${archivos[0].id}?uploadType=multipart`
+                    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+                const up = await fetch(url, {
+                    method: archivos.length ? 'PATCH' : 'POST',
+                    headers: { ...cabe, 'Content-Type': `multipart/related; boundary=${limite}` },
+                    body: cuerpo
+                });
+                if (!up.ok) throw new Error('subida ' + up.status);
+                mostrarToast('Respaldo guardado en Google Drive', { deshacer: false });
+            } catch (e) {
+                console.error('Error Drive:', e);
+                mostrarToast('No se pudo guardar en Drive. Toca de nuevo para autorizar.', { deshacer: false });
+            }
+        }
+    </script>
+
+    <script>
+        // ===== Restaurar desde Google Drive =====
+        window.restaurarDrive = function () {
+            const c = gCliente();
+            if (!c) { mostrarToast('Google todavía no carga. Revisa la conexión.', { deshacer: false }); return; }
+            if (gToken) restaurarDesdeDrive();
+            else { gPendiente = restaurarDesdeDrive; c.requestAccessToken({ prompt: 'consent' }); }
+        };
+        async function restaurarDesdeDrive() {
+            try {
+                const cabe = { Authorization: 'Bearer ' + gToken };
+                const q = encodeURIComponent(`name='${GDRIVE_NOMBRE}' and trashed=false`);
+                const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: cabe });
+                if (r.status === 401) { gToken = null; throw new Error('sesión vencida'); }
+                const archivos = (await r.json()).files || [];
+                if (!archivos.length) { mostrarToast('Todavía no hay respaldo en Drive', { deshacer: false }); return; }
+                const d = await fetch(`https://www.googleapis.com/drive/v3/files/${archivos[0].id}?alt=media`, { headers: cabe });
+                if (!d.ok) throw new Error('descarga ' + d.status);
+                const data = await d.json();
+                if (!data.historialMeses || typeof data.historialMeses !== 'object') throw new Error('formato no válido');
+                const fecha = data.creadoEn ? new Date(data.creadoEn).toLocaleString('es-CL') : 'desconocida';
+                mostrarModalConfirmacion(
+                    'Restaurar desde Drive',
+                    `Se reemplazarán los datos de la app por el respaldo del ${fecha}. ¿Continuar?`,
+                    'fa-cloud-arrow-down',
+                    () => {
+                        historialMeses = data.historialMeses;
+                        claveMesActual = data.claveMesActual || claveMesActual;
+                        const [y, m] = claveMesActual.split('-').map(Number);
+                        anioActual = y; mesActualIndex = m - 1;
+                        cargarDatosMesActual();
+                        guardarDatos();
+                        mostrarToast('Datos restaurados desde Drive', { deshacer: false });
+                    }
+                );
+            } catch (e) {
+                console.error('Error al restaurar Drive:', e);
+                mostrarToast('No se pudo restaurar desde Drive. Toca de nuevo para autorizar.', { deshacer: false });
+            }
+        }
     </script>
 </body>
 </html>
